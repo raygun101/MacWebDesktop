@@ -230,50 +230,39 @@
     </symbol>
   </svg>
 
-    <!-- Desktop background: simple dark blue gradient -->
+    <!-- Desktop background: medium teal color scheme -->
   <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none">
-    <defs>
-      <!-- Pastel sky gradient -->
-      <linearGradient id="skyGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#FFDEE9"/>
-        <stop offset="100%" stop-color="#B5FFFC"/>
-      </linearGradient>
-      <!-- Pastel hill gradient -->
-      <linearGradient id="hillGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#D4FC79"/>
-        <stop offset="100%" stop-color="#96E6A1"/>
-      </linearGradient>
-      <!-- Soft sun gradient -->
-      <radialGradient id="sunGradient" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stop-color="#FFF9C4"/>
-        <stop offset="100%" stop-color="#FFECB3"/>
-      </radialGradient>
-      <!-- Tree leaves gradient -->
-      <radialGradient id="treeLeavesGradient" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stop-color="#B2DFDB"/>
-        <stop offset="100%" stop-color="#80CBC4"/>
-      </radialGradient>
-    </defs>
+      <defs>
+        <!-- Medium teal background gradient -->
+        <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#008080">
+            <animate attributeName="stop-color" values="#008080;#20B2AA;#008080" dur="20s" repeatCount="indefinite"/>
+          </stop>
+          <stop offset="100%" stop-color="#20B2AA">
+            <animate attributeName="stop-color" values="#20B2AA;#008080;#20B2AA" dur="20s" repeatCount="indefinite"/>
+          </stop>
+        </linearGradient>
+      </defs>
     
-    <!-- Background sky -->
-    <rect width="100%" height="100%" fill="url(#skyGradient)" />
+      <!-- Background -->
+      <rect width="100%" height="100%" fill="url(#bgGradient)" />
     
-    <!-- Sun in the top right -->
-    <circle cx="700" cy="100" r="50" fill="url(#sunGradient)" />
+      <!-- Subtle animated circle -->
+      <circle cx="400" cy="300" r="100" fill="rgba(200, 200, 200, 0.3)">
+        <animate attributeName="cx" values="380;420;380" dur="30s" repeatCount="indefinite"/>
+        <animate attributeName="cy" values="300;320;300" dur="30s" repeatCount="indefinite"/>
+      </circle>
     
-    <!-- Rolling hill at the bottom -->
-    <path d="M0 500 Q400 400 800 500 L800 600 L0 600 Z" fill="url(#hillGradient)" />
-    
-    <!-- Relaxing tree -->
-    <g id="tree" transform="translate(200,500)">
-      <!-- Tree trunk -->
-      <rect x="-10" y="-60" width="20" height="60" fill="#8B4513" />
-      <!-- Tree foliage (three overlapping circles) -->
-      <circle cx="0" cy="-80" r="40" fill="url(#treeLeavesGradient)" />
-      <circle cx="-30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />
-      <circle cx="30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />
-    </g>
-  </svg>
+      <!-- Rotating ellipse -->
+      <ellipse cx="400" cy="300" rx="150" ry="80" fill="rgba(255, 255, 255, 0.2)">
+        <animateTransform attributeName="transform" attributeType="XML"
+                          type="rotate"
+                          from="0 400 300"
+                          to="360 400 300"
+                          dur="60s"
+                          repeatCount="indefinite"/>
+      </ellipse>
+    </svg>
 
   <div id="desktop">
     <div id="menu-bar">
