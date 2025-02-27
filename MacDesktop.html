@@ -712,6 +712,51 @@
               action: function(){ OS.openFinder(filesystem.desktop); } },
             { type:"app", label:"My App", left:50, top:50, icon:"#icon-folder",
               action: function(){ OS.createWindow("My App", '<p>This is a sample app window.</p>'); } },
+              { type:"app", label:"My Picture", left:200, top:80, icon:"#icon-finder",
+              action: function(){ OS.createWindow("My Picture", 
+              '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">\n' +
+              '  <defs>\n' +
+              '    <!-- Pastel sky gradient -->\n' +
+              '    <linearGradient id="skyGradient" x1="0" y1="0" x2="0" y2="1">\n' +
+              '      <stop offset="0%" stop-color="#FFDEE9"/>\n' +
+              '      <stop offset="100%" stop-color="#B5FFFC"/>\n' +
+              '    </linearGradient>\n' +
+              '    <!-- Pastel hill gradient -->\n' +
+              '    <linearGradient id="hillGradient" x1="0" y1="0" x2="0" y2="1">\n' +
+              '      <stop offset="0%" stop-color="#D4FC79"/>\n' +
+              '      <stop offset="100%" stop-color="#96E6A1"/>\n' +
+              '    </linearGradient>\n' +
+              '    <!-- Soft sun gradient -->\n' +
+              '    <radialGradient id="sunGradient" cx="0.5" cy="0.5" r="0.5">\n' +
+              '      <stop offset="0%" stop-color="#FFF9C4"/>\n' +
+              '      <stop offset="100%" stop-color="#FFECB3"/>\n' +
+              '    </radialGradient>\n' +
+              '    <!-- Tree leaves gradient -->\n' +
+              '    <radialGradient id="treeLeavesGradient" cx="0.5" cy="0.5" r="0.5">\n' +
+              '      <stop offset="0%" stop-color="#B2DFDB"/>\n' +
+              '      <stop offset="100%" stop-color="#80CBC4"/>\n' +
+              '    </radialGradient>\n' +
+              '  </defs>\n' +
+              '  \n' +
+              '  <!-- Background sky -->\n' +
+              '  <rect width="100%" height="100%" fill="url(#skyGradient)" />\n' +
+              '  \n' +
+              '  <!-- Sun in the top right -->\n' +
+              '  <circle cx="700" cy="100" r="50" fill="url(#sunGradient)" />\n' +
+              '  \n' +
+              '  <!-- Rolling hill at the bottom -->\n' +
+              '  <path d="M0 500 Q400 400 800 500 L800 600 L0 600 Z" fill="url(#hillGradient)" />\n' +
+              '  \n' +
+              '  <!-- Relaxing tree -->\n' +
+              '  <g id="tree" transform="translate(200,500)">\n' +
+              '    <!-- Tree trunk -->\n' +
+              '    <rect x="-10" y="-60" width="20" height="60" fill="#8B4513" />\n' +
+              '    <!-- Tree foliage (three overlapping circles) -->\n' +
+              '    <circle cx="0" cy="-80" r="40" fill="url(#treeLeavesGradient)" />\n' +
+              '    <circle cx="-30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />\n' +
+              '    <circle cx="30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />\n' +
+              '  </g>\n' +
+              '</svg>'); } },
             { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
           ]
         }
