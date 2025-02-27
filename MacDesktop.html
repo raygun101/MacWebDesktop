@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Retro Mac OS 9 Desktop - Updated</title>
+  <style>
+    body, html {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: "Chicago", sans-serif;
+      user-select: none;
+    }
+    svg#icons { display: none; }
+    #drag-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3000;
+      pointer-events: none;
+    }
+    #desktop {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: none;
+    }
+    /* Menu bar styles */
+    #menu-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 24px;
+      background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+      border-bottom: 1px solid #aaa;
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .menu-item {
+      margin-right: 15px;
+      cursor: pointer;
+      position: relative;
+      padding: 2px 4px;
+      display: flex;
+      align-items: center;
+    }
+    .menu-item svg { margin-right: 4px; }
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #fff;
+      border: 1px solid #aaa;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      z-index: 1001;
+      min-width: 150px;
+    }
+    .dropdown li {
+      list-style: none;
+      padding: 5px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .dropdown li:hover { background: #b0c4de; }
+    #desktop-clock {
+      position: absolute;
+      right: 10px;
+      top: 2px;
+      font-size: 12px;
+      color: #333;
+    }
+    .window {
+      position: absolute;
+      border: 2px solid #666;
+      background: #fff;
+      box-shadow: 5px 5px 10px rgba(0,0,0,0.5);
+      z-index: 200;
+    }
+    .window-header {
+      background: linear-gradient(to bottom, #ddd, #bbb);
+      padding: 4px;
+      cursor: move;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .title { font-weight: bold; }
+    .window-controls { display: flex; gap: 4px; }
+    .window-controls span {
+      width: 16px;
+      height: 16px;
+      display: inline-block;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .close { background: red; }
+    .minimize { background: yellow; }
+    .maximize { background: green; }
+    .window-content {
+      padding: 10px;
+      height: calc(100% - 30px);
+      overflow: auto;
+      position: relative;
+    }
+    .resize-handle {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      bottom: 0;
+      right: 0;
+      cursor: se-resize;
+      background: rgba(0,0,0,0.3);
+    }
+    .finder-icon {
+      width: 64px;
+      text-align: center;
+      cursor: pointer;
+      position: absolute;
+    }
+    .finder-icon svg {
+      width: 48px;
+      height: 48px;
+      display: block;
+      margin: 0 auto;
+    }
+    #desktop-content .finder-icon div {
+      color: #fff;
+      background: rgba(0,0,0,0.5);
+      padding: 2px 4px;
+      border-radius: 4px;
+      margin-top: 2px;
+      font-size: 12px;
+      cursor: default;
+    }
+    #dock {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.8);
+      padding: 5px;
+      border-top: 1px solid #aaa;
+      display: flex;
+      gap: 5px;
+      z-index: 1000;
+    }
+    .dock-icon {
+      padding: 5px;
+      background: #ddd;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    #finder-context-menu {
+      position: absolute;
+      display: none;
+      background: #fff;
+      border: 1px solid #aaa;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      z-index: 1500;
+    }
+    #finder-context-menu ul {
+      list-style: none;
+      margin: 0;
+      padding: 5px 0;
+    }
+    #finder-context-menu ul li {
+      padding: 5px 20px;
+      cursor: pointer;
+    }
+    #finder-context-menu ul li:hover { background: #b0c4de; }
+    .desktop-window {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: transparent;
+      pointer-events: auto;
+    }
+    .finder-content {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #desktop-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body>
+  <div id="drag-layer"></div>
+  <svg id="icons">
+    <symbol id="icon-apple" viewBox="0 0 24 24">
+      <path d="M16.5 1.7c-.9.9-2.4 1.7-3.8 1.5-.2-1.5.5-3 1.4-3.9.9-1 2.4-1.6 3.8-1.6.2 1.6-.4 3-1.4 4zm2.6 6.8c-1.3-1.6-2.8-2.3-4.4-2.3-2.1 0-3 1-4.5 1s-2.6-1-4.5-1c-1.7 0-3.6 1-4.9 2.8-2.1 3-1.8 8.6 1.7 13.1 1.2 1.6 2.7 3.4 4.7 3.4s2.6-1 4.5-1 2.9 1 4.5 1c2 0 3.5-1.8 4.7-3.4.7-1 1.3-2 1.7-3.1-4.6-1.7-5.3-8.2-.8-10.4z"/>
+    </symbol>
+    <symbol id="icon-finder" viewBox="0 0 64 64">
+      <rect x="4" y="4" width="56" height="56" rx="8" ry="8" fill="#B0C4DE" stroke="#000" stroke-width="2"/>
+      <circle cx="22" cy="26" r="4" fill="#000"/>
+      <circle cx="42" cy="26" r="4" fill="#000"/>
+      <path d="M20,40 Q32,50 44,40" stroke="#000" stroke-width="2" fill="none"/>
+    </symbol>
+    <symbol id="icon-folder" viewBox="0 0 64 64">
+      <path d="M8 20H56V52H8Z" fill="#FCD116" stroke="#A67C00" stroke-width="2"/>
+      <path d="M8 20H24V12H8Z" fill="#FCD116" stroke="#A67C00" stroke-width="2"/>
+    </symbol>
+    <symbol id="icon-file" viewBox="0 0 64 64">
+      <path d="M12 4H44L60 20V60H12Z" fill="#fff" stroke="#000" stroke-width="2"/>
+      <line x1="20" y1="16" x2="44" y2="16" stroke="#000" stroke-width="2"/>
+      <line x1="20" y1="28" x2="44" y2="28" stroke="#000" stroke-width="2"/>
+      <line x1="20" y1="40" x2="44" y2="40" stroke="#000" stroke-width="2"/>
+    </symbol>
+    <symbol id="icon-trash" viewBox="0 0 64 64">
+      <rect x="16" y="20" width="32" height="36" fill="#ccc" stroke="#000" stroke-width="2"/>
+      <line x1="16" y1="20" x2="48" y2="20" stroke="#000" stroke-width="2"/>
+      <rect x="24" y="8" width="16" height="12" fill="#ccc" stroke="#000" stroke-width="2"/>
+    </symbol>
+  </svg>
+
+  <!-- Desktop background: simple dark blue gradient -->
+  <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="darkBlueGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7660A3"/>
+        <stop offset="100%" stop-color="#614F86"/>
+      </linearGradient>
+    </defs>
+    <rect width="100" height="100" fill="url(#darkBlueGradient)"/>
+  </svg>
+
+  <div id="desktop">
+    <div id="menu-bar">
+      <div class="menu-item" id="apple-menu">
+        <svg width="16" height="16"><use xlink:href="#icon-apple"></use></svg>
+        Apple
+        <ul class="dropdown" id="apple-dropdown">
+          <li data-action="about">About This Mac</li>
+          <li data-action="system">System Preferences...</li>
+          <li data-action="restart">Restart...</li>
+          <li data-action="shutdown">Shut Down...</li>
+        </ul>
+      </div>
+      <div class="menu-item" id="file-menu">
+        File
+        <ul class="dropdown" id="file-dropdown">
+          <li data-action="new-finder">New Finder Window</li>
+          <li data-action="new-folder">New Folder</li>
+          <li data-action="new-file">New File</li>
+          <li data-action="empty-trash">Empty Trash</li>
+        </ul>
+      </div>
+      <div id="desktop-clock"></div>
+    </div>
+    <div id="desktop-finder" class="desktop-window">
+      <div class="finder-content" id="desktop-content"></div>
+    </div>
+    <div id="finder-context-menu">
+      <ul>
+        <li data-action="new-folder">New Folder</li>
+        <li data-action="new-file">New File</li>
+      </ul>
+    </div>
+  </div>
+  <div id="window-container"></div>
+  <div id="dock"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Helper functions
+      var $ = function(s, p){ return (p || document).querySelector(s); },
+          $$ = function(s, p){ return Array.prototype.slice.call((p || document).querySelectorAll(s)); },
+          on = function(e, t, h, o){ e && e.addEventListener(t, h, o); return e; },
+          create = function(t, a, c) {
+            var el = (t.indexOf("svg:") === 0)
+                     ? document.createElementNS("http://www.w3.org/2000/svg", t.substring(4))
+                     : document.createElement(t);
+            if(a) Object.keys(a).forEach(function(k) {
+              if(k === "text") el.textContent = a[k];
+              else if(k === "html") el.innerHTML = a[k];
+              else if(k === "style" && typeof a[k] === "object")
+                Object.keys(a[k]).forEach(function(sk){ el.style[sk] = a[k][sk]; });
+              else if(k === "data" && typeof a[k] === "object")
+                Object.keys(a[k]).forEach(function(dk){ el.dataset[dk] = a[k][dk]; });
+              else if(k.indexOf("on") === 0 && typeof a[k] === "function")
+                on(el, k.substring(2).toLowerCase(), a[k]);
+              else if(k === "xlink:href")
+                el.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", a[k]);
+              else el.setAttribute(k, a[k]);
+            });
+            if(c) (Array.isArray(c) ? c : [c]).forEach(function(child) {
+              el.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+            });
+            return el;
+          },
+          zIndexCounter = 300,
+          activeWindow = null,
+          newFolderCounter = 1,
+          newFileCounter = 1,
+          openFinderWindows = [];
+
+      // -----------------------------
+      // Core window and drag/drop functions
+      function dragElement(el, e){
+        e.preventDefault();
+        var posX = e.clientX, posY = e.clientY;
+        document.onmouseup = function(){ document.onmouseup = null; document.onmousemove = null; };
+        document.onmousemove = function(ev){
+          ev.preventDefault();
+          var dx = posX - ev.clientX, dy = posY - ev.clientY;
+          posX = ev.clientX;
+          posY = ev.clientY;
+          el.style.top = (el.offsetTop - dy) + "px";
+          el.style.left = (el.offsetLeft - dx) + "px";
+        };
+      }
+      function initResize(w, e){
+        e.preventDefault();
+        var sX = e.clientX, sY = e.clientY, sW = w.offsetWidth, sH = w.offsetHeight;
+        function doR(ev){ 
+          w.style.width = (sW + ev.clientX - sX) + 'px';
+          w.style.height = (sH + ev.clientY - sY) + 'px';
+        }
+        function stopR(){ 
+          document.removeEventListener("mousemove", doR);
+          document.removeEventListener("mouseup", stopR);
+        }
+        document.addEventListener("mousemove", doR);
+        document.addEventListener("mouseup", stopR);
+      }
+      function minimizeWindow(w){
+        w.style.display = "none";
+        var d = $("#dock"),
+            di = document.createElement("div");
+        di.classList.add("dock-icon");
+        di.textContent = w.querySelector(".window-header .title").textContent;
+        di.addEventListener("click", function(){ restoreWindow(w, di); });
+        d.appendChild(di);
+      }
+      function restoreWindow(w, di){
+        w.style.display = "block";
+        w.style.zIndex = zIndexCounter++;
+        di.remove();
+      }
+      function createWindow(t, html){
+        var w = document.createElement("div");
+        w.classList.add("window");
+        w.style.top = "100px";
+        w.style.left = "100px";
+        w.style.width = "400px";
+        w.style.height = "300px";
+        w.style.zIndex = zIndexCounter++;
+        w.addEventListener("mousedown", function(){ 
+          activeWindow = w; 
+          w.style.zIndex = zIndexCounter++; 
+        });
+        var h = document.createElement("div");
+        h.classList.add("window-header");
+        var ts = document.createElement("span");
+        ts.classList.add("title");
+        ts.textContent = t;
+        var ctr = document.createElement("div");
+        ctr.classList.add("window-controls");
+        var cl = document.createElement("span");
+        cl.classList.add("close");
+        cl.title = "Close";
+        cl.addEventListener("click", function(e){ 
+          w.remove(); 
+          openFinderWindows = openFinderWindows.filter(function(win){ return win !== w; });
+          e.stopPropagation();
+        });
+        ctr.appendChild(cl);
+        var mn = document.createElement("span");
+        mn.classList.add("minimize");
+        mn.title = "Minimize";
+        mn.addEventListener("click", function(e){ 
+          e.stopPropagation(); 
+          minimizeWindow(w);
+        });
+        ctr.appendChild(mn);
+        var mx = document.createElement("span");
+        mx.classList.add("maximize");
+        mx.title = "Maximize/Restore";
+        mx.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(w.dataset.maximized === "true"){
+            var orig = JSON.parse(w.dataset.originalRect);
+            w.style.top = orig.top;
+            w.style.left = orig.left;
+            w.style.width = orig.width;
+            w.style.height = orig.height;
+            w.dataset.maximized = "false";
+          } else {
+            w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
+            w.style.top = "24px";
+            w.style.left = "0px";
+            w.style.width = "100%";
+            w.style.height = "calc(100% - 24px)";
+            w.dataset.maximized = "true";
+          }
+        });
+        ctr.appendChild(mx);
+        h.appendChild(ts);
+        h.appendChild(ctr);
+        w.appendChild(h);
+        var cd = document.createElement("div");
+        cd.classList.add("window-content");
+        cd.style.position = "relative";
+        cd.innerHTML = html;
+        w.appendChild(cd);
+        h.addEventListener("mousedown", function(e){ dragElement(w, e); });
+        var rh = document.createElement("div");
+        rh.classList.add("resize-handle");
+        w.appendChild(rh);
+        rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
+        $("#window-container").appendChild(w);
+        return w;
+      }
+      function addFinderIcon(container, type, label, left, top, itemData, store){
+        var icon = create("div", { class: "finder-icon", style: {
+          left: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : left + "px",
+          top: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : top + "px",
+          right: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
+          bottom: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
+          position: "absolute",
+          width: "64px"
+        }});
+        var svg = create("svg:svg", { width: "48", height: "48" }),
+            use = create("svg:use", { "xlink:href": type === "folder" ? (itemData && itemData.isTrash ? "#icon-trash" : "#icon-folder") : (type === "file" ? "#icon-file" : "#icon-finder") });
+        svg.appendChild(use);
+        icon.appendChild(svg);
+        var txt = create("div", { text: label });
+        icon.appendChild(txt);
+        if(itemData){
+          icon.storedItem = itemData;
+        } else if(store){
+          var newItem = { type: type, label: label, left: left, top: top, folderContents: type === "folder" ? [] : undefined };
+          icon.storedItem = newItem;
+          if(container.folderData && container.folderData.folderContents){
+            FilesystemAPI.addItem(container.folderData, newItem);
+          }
+        }
+        on(icon, "mousedown", function(e){ startDrag(icon, e); e.stopPropagation(); });
+        on(icon, "dblclick", function(e){
+          if(icon.storedItem) {
+            if(icon.storedItem.type === "folder") {
+              openFolderWindow(icon.storedItem);
+            } else if(icon.storedItem.type === "app") {
+              icon.storedItem.action && icon.storedItem.action();
+            } else if(icon.storedItem.type === "file") {
+              alert('File "' + icon.storedItem.label + '" opened.');
+            }
+          }
+          e.stopPropagation();
+        });
+        container.appendChild(icon);
+      }
+      function startDrag(el, e){
+        var initialX = e.clientX, initialY = e.clientY,
+            origRect = el.getBoundingClientRect(),
+            origLeft = origRect.left, origTop = origRect.top,
+            offsetX = e.clientX - origLeft, offsetY = e.clientY - origTop,
+            dragging = false, origContainer = el.parentElement;
+        function onMouseMove(ev){
+          var dx = ev.clientX - initialX, dy = ev.clientY - initialY;
+          if(!dragging && Math.sqrt(dx*dx + dy*dy) > 5){
+            dragging = true;
+            var dl = $("#drag-layer");
+            el.style.left = origLeft + "px";
+            el.style.top = origTop + "px";
+            dl.appendChild(el);
+            el.style.position = "absolute";
+            el.style.zIndex = 3001;
+          }
+          if(dragging){
+            el.style.left = (origLeft + dx) + "px";
+            el.style.top = (origTop + dy) + "px";
+          }
+        }
+        function onMouseUp(ev){
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+          if(!dragging) return;
+          var finalX = ev.clientX, finalY = ev.clientY;
+          el.style.display = "none";
+          var dropEl = document.elementFromPoint(finalX, finalY), folderTarget = null;
+          while(dropEl && !folderTarget){
+            if(dropEl.classList && dropEl.classList.contains("finder-icon") &&
+               dropEl !== el && dropEl.storedItem && (dropEl.storedItem.type === "folder" || dropEl.storedItem.isTrash)){
+              folderTarget = dropEl;
+              break;
+            }
+            dropEl = dropEl.parentElement;
+          }
+          if(folderTarget){
+            var targetFolder = folderTarget.storedItem;
+            if(origContainer.folderData && el.storedItem){
+              FilesystemAPI.removeItem(origContainer.folderData, el.storedItem);
+            }
+            if(targetFolder && targetFolder.folderContents){
+              el.storedItem.left = 20 + (targetFolder.folderContents.length % 3) * 80;
+              el.storedItem.top = 20 + Math.floor(targetFolder.folderContents.length / 3) * 80;
+              FilesystemAPI.addItem(targetFolder, el.storedItem);
+              el.remove();
+              return;
+            }
+          }
+          dropEl = document.elementFromPoint(finalX, finalY);
+          var dropTarget = null;
+          while(dropEl && !dropTarget){
+            if(dropEl.classList && dropEl.classList.contains("finder-content")){
+              dropTarget = dropEl;
+              break;
+            }
+            dropEl = dropEl.parentElement;
+          }
+          if(!dropTarget){
+            dropEl = document.elementFromPoint(finalX, finalY);
+            while(dropEl && !dropTarget){
+              if(dropEl.classList && dropEl.classList.contains("window")){
+                var fc = dropEl.querySelector(".finder-content");
+                if(fc){ dropTarget = fc; break; }
+              }
+              dropEl = dropEl.parentElement;
+            }
+          }
+          if(!dropTarget) dropTarget = $("#desktop-content");
+          el.style.display = "";
+          dropTarget.appendChild(el);
+          var dropRect = dropTarget.getBoundingClientRect(),
+              newLeft = finalX - dropRect.left - offsetX,
+              newTop = finalY - dropRect.top - offsetY;
+          newLeft = Math.max(0, Math.min(newLeft, dropTarget.offsetWidth - el.offsetWidth));
+          newTop = Math.max(0, Math.min(newTop, dropTarget.offsetHeight - el.offsetHeight));
+          el.style.left = newLeft + "px";
+          el.style.top = newTop + "px";
+          if(el.storedItem){
+            el.storedItem.left = newLeft;
+            el.storedItem.top = newTop;
+          }
+          if(origContainer.folderData && dropTarget.folderData && origContainer.folderData !== dropTarget.folderData){
+            FilesystemAPI.removeItem(origContainer.folderData, el.storedItem);
+            if(!dropTarget.folderData.folderContents.includes(el.storedItem))
+              FilesystemAPI.addItem(dropTarget.folderData, el.storedItem);
+          }
+        }
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      }
+      function updateClock(){
+        var n = new Date(), c = $("#desktop-clock"),
+            h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
+        if(c) { c.textContent = (h<10?"0"+h:h) + ":" + (m<10?"0"+m:m) + ":" + (s<10?"0"+s:s); }
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // -----------------------------
+      // OS abstraction – define OS before filesystem so actions can reference it
+      var OS = {
+        init: function(){ openDesktop(); },
+        openFinder: function(folder){ openFinderWindow(folder); },
+        createWindow: function(title, content){ return createWindow(title, content); }
+      };
+
+      // Filesystem API for shared operations
+      var FilesystemAPI = {
+        addItem: function(folder, item) {
+          if(folder && folder.folderContents) {
+            folder.folderContents.push(item);
+            updateOpenFinderWindows(folder);
+          }
+        },
+        removeItem: function(folder, item) {
+          if(folder && folder.folderContents) {
+            folder.folderContents = folder.folderContents.filter(function(i){ return i !== item; });
+            updateOpenFinderWindows(folder);
+          }
+        },
+        renameItem: function(folder, item, newLabel) {
+          if(item) {
+            item.label = newLabel;
+            updateOpenFinderWindows(folder);
+          }
+        }
+      };
+      function updateOpenFinderWindows(folder) {
+        openFinderWindows.forEach(function(win) {
+          if(win.currentFolder === folder) {
+            var fc = win.querySelector(".finder-content");
+            renderFolderContents(folder, fc);
+          }
+        });
+      }
+
+      // Setup context menu for Finder windows
+      $$("#finder-context-menu li").forEach(function(item){
+        on(item, "click", function(e){
+          var act = this.getAttribute("data-action");
+          if(act === "new-folder" && currentContextContainer) {
+            addFinderIcon(currentContextContainer, "folder", "New Folder " + newFolderCounter++, 20, 20, null, true);
+          } else if(act === "new-file" && currentContextContainer) {
+            addFinderIcon(currentContextContainer, "file", "New File " + newFileCounter++, 20, 20, null, true);
+          }
+          hideFinderContextMenu();
+          e.stopPropagation();
+        });
+      });
+      on(document, "click", function(){ 
+        $("#finder-context-menu").style.display = "none"; 
+        $$(".dropdown").forEach(function(menu) {
+          menu.style.display = "none";
+        });
+      });
+      var currentContextContainer = null;
+      function setupFinderContextMenu(c){ 
+        on(c, "contextmenu", function(e){ 
+          e.preventDefault(); 
+          currentContextContainer = c; 
+          showFinderContextMenu(e.pageX, e.pageY); 
+        }); 
+      }
+      function showFinderContextMenu(x, y){ 
+        var m = $("#finder-context-menu"); 
+        m.style.display = "block"; 
+        m.style.left = x + "px"; 
+        m.style.top = y + "px";
+      }
+      function hideFinderContextMenu(){ 
+        $("#finder-context-menu").style.display = "none"; 
+      }
+
+      // -----------------------------
+      // Desktop and Finder functions
+      function openDesktop(){
+        var d = $("#desktop-content");
+        if(!d) { console.error("desktop-content element not found"); return; }
+        d.folderData = filesystem.desktop;
+        renderFolderContents(filesystem.desktop, d);
+        setupFinderContextMenu(d);
+      }
+      function renderFolderContents(folder, container){
+        container.innerHTML = "";
+        folder.folderContents.forEach(function(item){
+          addFinderIcon(container, item.type, item.label, item.left, item.top, item, false);
+        });
+      }
+      function openFinderWindow(folder){
+        var title = folder ? folder.label : "Finder",
+            html = '<div class="finder-content"></div>',
+            win = createWindow(title, html);
+        win.isFinder = true;
+        if(folder){ 
+          win.currentFolder = folder;
+        }
+        activeWindow = win; 
+        openFinderWindows.push(win);
+        var fc = win.querySelector(".finder-content");
+        if(folder){ 
+          fc.folderData = folder; 
+          renderFolderContents(folder, fc); 
+        } else { 
+          fc.folderData = filesystem.desktop; 
+          renderFolderContents(filesystem.desktop, fc); 
+        }
+        setupFinderContextMenu(fc);
+      }
+      function openFolderWindow(item){ openFinderWindow(item); }
+
+      // -----------------------------
+      // Shared filesystem – note OS is now defined so actions can call it
+      var filesystem = {
+        desktop: {
+          label: "Desktop",
+          folderContents: [
+            { type:"app", label:"Finder", left:250, top:50, icon:"#icon-finder",
+              action: function(){ OS.openFinder(filesystem.desktop); } },
+            { type:"app", label:"My App", left:50, top:50, icon:"#icon-folder",
+              action: function(){ OS.createWindow("My App", '<p>This is a sample app window.</p>'); } },
+            { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
+          ]
+        }
+      };
+
+      // -----------------------------
+      // Initialize the OS
+      OS.init();
+
+      // Menu events for Apple and File menus
+      on($("#apple-menu"), "click", function(e){
+        var dropdown = this.querySelector(".dropdown");
+        if(dropdown) {
+          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+        e.stopPropagation();
+      });
+      on($("#file-menu"), "click", function(e){
+        var dropdown = this.querySelector(".dropdown");
+        if(dropdown) {
+          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+        e.stopPropagation();
+      });
+    });
+  </script>
+</body>
+</html>
