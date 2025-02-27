@@ -230,22 +230,56 @@
     </symbol>
   </svg>
 
-  <!-- Desktop background: simple dark blue gradient -->
-  <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <!-- Desktop background: simple dark blue gradient -->
+  <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none">
     <defs>
-      <linearGradient id="darkBlueGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#7660A3"/>
-        <stop offset="100%" stop-color="#614F86"/>
+      <!-- Pastel sky gradient -->
+      <linearGradient id="skyGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FFDEE9"/>
+        <stop offset="100%" stop-color="#B5FFFC"/>
       </linearGradient>
+      <!-- Pastel hill gradient -->
+      <linearGradient id="hillGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#D4FC79"/>
+        <stop offset="100%" stop-color="#96E6A1"/>
+      </linearGradient>
+      <!-- Soft sun gradient -->
+      <radialGradient id="sunGradient" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stop-color="#FFF9C4"/>
+        <stop offset="100%" stop-color="#FFECB3"/>
+      </radialGradient>
+      <!-- Tree leaves gradient -->
+      <radialGradient id="treeLeavesGradient" cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stop-color="#B2DFDB"/>
+        <stop offset="100%" stop-color="#80CBC4"/>
+      </radialGradient>
     </defs>
-    <rect width="100" height="100" fill="url(#darkBlueGradient)"/>
+    
+    <!-- Background sky -->
+    <rect width="100%" height="100%" fill="url(#skyGradient)" />
+    
+    <!-- Sun in the top right -->
+    <circle cx="700" cy="100" r="50" fill="url(#sunGradient)" />
+    
+    <!-- Rolling hill at the bottom -->
+    <path d="M0 500 Q400 400 800 500 L800 600 L0 600 Z" fill="url(#hillGradient)" />
+    
+    <!-- Relaxing tree -->
+    <g id="tree" transform="translate(200,500)">
+      <!-- Tree trunk -->
+      <rect x="-10" y="-60" width="20" height="60" fill="#8B4513" />
+      <!-- Tree foliage (three overlapping circles) -->
+      <circle cx="0" cy="-80" r="40" fill="url(#treeLeavesGradient)" />
+      <circle cx="-30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />
+      <circle cx="30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />
+    </g>
   </svg>
 
   <div id="desktop">
     <div id="menu-bar">
       <div class="menu-item" id="apple-menu">
         <svg width="16" height="16"><use xlink:href="#icon-apple"></use></svg>
-        Apple
+        &nbsp;Apple
         <ul class="dropdown" id="apple-dropdown">
           <li data-action="about">About This Mac</li>
           <li data-action="system">System Preferences...</li>
