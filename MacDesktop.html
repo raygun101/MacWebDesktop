@@ -32,15 +32,16 @@
       position: relative;
       background: none;
     }
-    /* Menu bar styles */
+    /* Modern macOS-style menu bar */
     #menu-bar {
-      position: absolute;
+      position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 24px;
-      background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
-      border-bottom: 1px solid #aaa;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(0,0,0,0.1);
       display: flex;
       align-items: center;
       padding: 0 5px;
@@ -56,24 +57,28 @@
       align-items: center;
     }
     .menu-item svg { margin-right: 4px; }
+    /* Dropdown menus styled with translucency and round corners */
     .dropdown {
       display: none;
       position: absolute;
       top: 100%;
       left: 0;
-      background: #fff;
-      border: 1px solid #aaa;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       z-index: 1001;
       min-width: 150px;
+      padding: 5px 0;
     }
     .dropdown li {
       list-style: none;
-      padding: 5px 10px;
+      padding: 5px 20px;
       cursor: pointer;
       white-space: nowrap;
     }
-    .dropdown li:hover { background: #b0c4de; }
+    .dropdown li:hover { background: rgba(0, 0, 0, 0.1); }
     #desktop-clock {
       position: absolute;
       right: 10px;
@@ -81,7 +86,7 @@
       font-size: 12px;
       color: #333;
     }
-    /* Window styles: header now places controls on the left */
+    /* Window styling with controls on the left */
     .window {
       position: absolute;
       border: 2px solid #666;
@@ -112,8 +117,9 @@
     .close { background: red; }
     .minimize { background: yellow; }
     .maximize { background: green; }
+    /* Remove extra padding to make content seamless */
     .window-content {
-      padding: 10px;
+      padding: 0;
       height: calc(100% - 30px);
       overflow: auto;
       position: relative;
@@ -173,6 +179,7 @@
       display: none;
       background: #fff;
       border: 1px solid #aaa;
+      border-radius: 8px;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
       z-index: 1500;
     }
@@ -238,38 +245,38 @@
     </symbol>
   </svg>
 
-  <!-- Desktop background: medium teal color scheme -->
+  <!-- Desktop background -->
   <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#008080">
-            <animate attributeName="stop-color" values="#008080;#20B2AA;#008080" dur="20s" repeatCount="indefinite"/>
-          </stop>
-          <stop offset="100%" stop-color="#20B2AA">
-            <animate attributeName="stop-color" values="#20B2AA;#008080;#20B2AA" dur="20s" repeatCount="indefinite"/>
-          </stop>
-        </linearGradient>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#bgGradient)" />
-      <circle cx="400" cy="300" r="100" fill="rgba(200, 200, 200, 0.3)">
-        <animate attributeName="cx" values="380;420;380" dur="30s" repeatCount="indefinite"/>
-        <animate attributeName="cy" values="300;320;300" dur="30s" repeatCount="indefinite"/>
-      </circle>
-      <ellipse cx="400" cy="300" rx="150" ry="80" fill="rgba(255, 255, 255, 0.2)">
-        <animateTransform attributeName="transform" attributeType="XML"
-                          type="rotate"
-                          from="0 400 300"
-                          to="360 400 300"
-                          dur="60s"
-                          repeatCount="indefinite"/>
-      </ellipse>
-    </svg>
+    <defs>
+      <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#008080">
+          <animate attributeName="stop-color" values="#008080;#20B2AA;#008080" dur="20s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="100%" stop-color="#20B2AA">
+          <animate attributeName="stop-color" values="#20B2AA;#008080;#20B2AA" dur="20s" repeatCount="indefinite"/>
+        </stop>
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bgGradient)" />
+    <circle cx="400" cy="300" r="100" fill="rgba(200, 200, 200, 0.3)">
+      <animate attributeName="cx" values="380;420;380" dur="30s" repeatCount="indefinite"/>
+      <animate attributeName="cy" values="300;320;300" dur="30s" repeatCount="indefinite"/>
+    </circle>
+    <ellipse cx="400" cy="300" rx="150" ry="80" fill="rgba(255, 255, 255, 0.2)">
+      <animateTransform attributeName="transform" attributeType="XML"
+                        type="rotate"
+                        from="0 400 300"
+                        to="360 400 300"
+                        dur="60s"
+                        repeatCount="indefinite"/>
+    </ellipse>
+  </svg>
 
   <div id="desktop">
     <div id="menu-bar">
       <div class="menu-item" id="apple-menu">
         <svg width="16" height="16"><use xlink:href="#icon-apple"></use></svg>
-        &nbsp;Apple
+        Apple
         <ul class="dropdown" id="apple-dropdown">
           <li data-action="about">About This Mac</li>
           <li data-action="system">System Preferences...</li>
@@ -305,9 +312,9 @@
     document.addEventListener("DOMContentLoaded", function() {
       // Global system configuration
       window.systemConfig = localStorage.getItem("systemConfig") ? JSON.parse(localStorage.getItem("systemConfig")) : {
-          theme: "default",
-          language: "en",
-          desktopBackground: "#008080"
+        theme: "default",
+        language: "en",
+        desktopBackground: "#008080"
       };
 
       // Helper functions
@@ -352,7 +359,6 @@
           e.preventDefault();
           var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
           if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
-            // Fallback for file drops – create a blob URL.
             var file = e.dataTransfer.files[0];
             data = URL.createObjectURL(file);
             console.log("Dropped file; blob URL: ", data);
@@ -468,7 +474,6 @@
           }
         });
         ctr.appendChild(mx);
-        // Insert controls first, then title:
         h.appendChild(ctr);
         var ts = document.createElement("span");
         ts.classList.add("title");
@@ -628,7 +633,7 @@
       updateClock();
 
       // -----------------------------
-      // OS abstraction – define OS before filesystem so actions can reference it
+      // OS abstraction
       var OS = {
         init: function(){ openDesktop(); },
         openFinder: function(folder){ openFinderWindow(folder); },
@@ -789,14 +794,24 @@
       }
       function openFolderWindow(item){ openFinderWindow(item); }
 
-      // Top Menu Bar actions
-      $("#apple-menu").addEventListener("click", function(e){
-        var dropdown = this.querySelector(".dropdown");
-        if(dropdown) {
-          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-        }
-        e.stopPropagation();
+      // Top Menu Bar auto-show behavior
+      $$("#menu-bar .menu-item").forEach(function(item) {
+        item.addEventListener("mouseenter", function() {
+          // Hide other menus
+          $$("#menu-bar .dropdown").forEach(function(dd) {
+            dd.style.display = "none";
+          });
+          var dropdown = item.querySelector(".dropdown");
+          if(dropdown) dropdown.style.display = "block";
+        });
       });
+      $("#menu-bar").addEventListener("mouseleave", function() {
+        $$("#menu-bar .dropdown").forEach(function(dd) {
+          dd.style.display = "none";
+        });
+      });
+      
+      // Top Menu Bar click actions (for menu item actions)
       $("#apple-dropdown").addEventListener("click", function(e) {
         var action = e.target.getAttribute("data-action");
         if (action) {
@@ -810,13 +825,6 @@
             alert("Shutting down... (not really)");
           }
         }
-      });
-      $("#file-menu").addEventListener("click", function(e){
-        var dropdown = this.querySelector(".dropdown");
-        if(dropdown) {
-          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-        }
-        e.stopPropagation();
       });
       $("#file-dropdown").addEventListener("click", function(e) {
         var action = e.target.getAttribute("data-action");
@@ -838,7 +846,7 @@
       });
 
       // -----------------------------
-      // Shared filesystem – note OS is now defined so actions can call it
+      // Shared filesystem
       var filesystem = {
         desktop: {
           label: "Desktop",
