@@ -230,8 +230,8 @@
     </symbol>
   </svg>
 
-    <!-- Desktop background: medium teal color scheme -->
-  <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none"">
+  <!-- Desktop background: medium teal color scheme -->
+  <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none">
       <defs>
         <!-- Medium teal background gradient -->
         <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
@@ -598,6 +598,26 @@
         createWindow: function(title, content){ return createWindow(title, content); }
       };
 
+      // NEW: Allow an app to be an HTML app by loading a URL in an iframe.
+      // If the iframe errors, show the old-school Apple error icon.
+      // The window is resized initially to the desired width and height.
+      OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
+        var html = '<iframe src="' + url + '" style="width: 100%; height: 100%; border: none;"></iframe>';
+        var w = createWindow(title, html);
+        // Set initial window size based on the provided dimensions.
+        w.style.width = desiredWidth + 'px';
+        w.style.height = desiredHeight + 'px';
+        var iframe = w.querySelector("iframe");
+        // Handle errors by replacing iframe content with an error icon.
+        iframe.onerror = function() {
+          var contentDiv = w.querySelector(".window-content");
+          contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
+                                 '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
+                                 '<p>Page failed to load</p></div>';
+        };
+        return w;
+      };
+
       // Filesystem API for shared operations
       var FilesystemAPI = {
         addItem: function(folder, item) {
@@ -712,7 +732,7 @@
               action: function(){ OS.openFinder(filesystem.desktop); } },
             { type:"app", label:"My App", left:50, top:50, icon:"#icon-folder",
               action: function(){ OS.createWindow("My App", '<p>This is a sample app window.</p>'); } },
-              { type:"app", label:"My Picture", left:200, top:80, icon:"#icon-finder",
+            { type:"app", label:"My Picture", left:200, top:80, icon:"#icon-finder",
               action: function(){ OS.createWindow("My Picture", 
               '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">\n' +
               '  <defs>\n' +
@@ -757,6 +777,9 @@
               '    <circle cx="30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />\n' +
               '  </g>\n' +
               '</svg>'); } },
+            // NEW: HTML App that loads an external URL in an iframe.
+            { type:"app", label:"HTML App", left:300, top:150, icon:"#icon-folder",
+              action: function(){ OS.createHTMLWindow("HTML App", "https://www.example.com", 800, 600); } },
             { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
           ]
         }
