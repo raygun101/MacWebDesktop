@@ -8,6 +8,32 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <style>
+    /* --- Theme Variables --- */
+    :root {
+      /* Modern theme variables (default) */
+      --menubar-bg: rgba(255,255,255,0.6);
+      --menubar-border: rgba(0,0,0,0.1);
+      --dropdown-bg: rgba(255,255,255,0.8);
+      --dropdown-border: rgba(0,0,0,0.1);
+      --dropdown-hover-bg: #0a84ff;
+      --dropdown-hover-color: #fff;
+      --window-bg: #fff;
+      --window-border: #666;
+      --window-shadow: rgba(0,0,0,0.5);
+    }
+    .theme-classicos9 {
+      /* Classic OS9 look (you can tweak these values to more closely mimic OS9 screenshots) */
+      --menubar-bg: #c0c0c0;
+      --menubar-border: #808080;
+      --dropdown-bg: #d0d0d0;
+      --dropdown-border: #808080;
+      --dropdown-hover-bg: #0078d7;
+      --dropdown-hover-color: #fff;
+      --window-bg: #e0e0e0;
+      --window-border: #808080;
+      --window-shadow: rgba(0,0,0,0.7);
+    }
+    
     /* Basic reset and fonts */
     body, html {
       width: 100%;
@@ -16,6 +42,9 @@
       padding: 0;
       font-family: "Chicago", sans-serif;
       user-select: none;
+    }
+    body.theme-modern { /* explicitly assign modern if needed */
+      /* no extra overrides – uses :root variables */
     }
     svg#icons { display: none; }
     #drag-layer {
@@ -40,14 +69,15 @@
       left: 0;
       width: 100%;
       height: 24px;
-      background: rgba(255, 255, 255, 0.6);
+      background: var(--menubar-bg);
       backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(0,0,0,0.1);
+      border-bottom: 1px solid var(--menubar-border);
       display: flex;
       align-items: center;
       padding: 0 5px;
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: background 0.3s ease;
     }
     .menu-item {
       margin-right: 15px;
@@ -58,14 +88,14 @@
       align-items: center;
     }
     .menu-item svg { margin-right: 4px; }
-    /* Dropdown menus with transitions */
+    /* Dropdown menus with transitions and rounded corners */
     .dropdown {
       position: absolute;
       top: 24px;
       left: 0;
-      background: rgba(255, 255, 255, 0.8);
+      background: var(--dropdown-bg);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(0,0,0,0.1);
+      border: 1px solid var(--dropdown-border);
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       min-width: 150px;
@@ -85,10 +115,9 @@
       white-space: nowrap;
       transition: background 0.2s ease, color 0.2s ease;
     }
-    /* When hovering a dropdown item, mimic macOS selection: blue background and white text */
     .dropdown li:hover {
-      background: #0a84ff;
-      color: #fff;
+      background: var(--dropdown-hover-bg);
+      color: var(--dropdown-hover-color);
     }
     #desktop-clock {
       position: absolute;
@@ -97,12 +126,12 @@
       font-size: 12px;
       color: #333;
     }
-    /* Window styling with a pop-in animation */
+    /* Window styling with pop-in and pop-out animations */
     .window {
       position: absolute;
-      border: 2px solid #666;
-      background: #fff;
-      box-shadow: 5px 5px 10px rgba(0,0,0,0.5);
+      border: 2px solid var(--window-border);
+      background: var(--window-bg);
+      box-shadow: 5px 5px 10px var(--window-shadow);
       z-index: 200;
       transition: transform 0.3s ease, opacity 0.3s ease;
       transform: scale(0.95);
@@ -111,6 +140,10 @@
     .window.show {
       transform: scale(1);
       opacity: 1;
+    }
+    .window.closing {
+      transform: scale(0.9);
+      opacity: 0;
     }
     .window-header {
       background: linear-gradient(to bottom, #ddd, #bbb);
@@ -239,36 +272,11 @@
     }
   </style>
 </head>
-<body>
+<body class="theme-modern">
   <div id="drag-layer"></div>
   <svg id="icons">
-    <symbol id="rainbow-apple" viewBox="0 0 100 100">
-      <defs>
-        <linearGradient id="rainbowGradient" gradientTransform="rotate(90)">
-          <stop offset="0%" stop-color="#FF2D55"/>
-          <stop offset="20%" stop-color="#FF9500"/>
-          <stop offset="40%" stop-color="#FFCC00"/>
-          <stop offset="60%" stop-color="#4CD964"/>
-          <stop offset="80%" stop-color="#5AC8FA"/>
-          <stop offset="100%" stop-color="#007AFF"/>
-        </linearGradient>
-        <clipPath id="bite">
-          <rect x="0" y="0" width="100" height="100" />
-          <circle cx="80" cy="40" r="10"/>
-        </clipPath>
-      </defs>
-      <g clip-path="url(#bite)">
-        <path fill="url(#rainbowGradient)" d="
-          M50,10
-          C35,10 20,25 20,40
-          C20,60 40,75 50,85
-          C60,75 80,60 80,40
-          C80,25 65,10 50,10
-          Z"/>
-      </g>
-      <path fill="url(#rainbowGradient)" d="
-          M55,15
-          C60,5 75,5 70,15" />
+    <symbol id="icon-apple" viewBox="0 0 24 24">
+      <path d="M16.5 1.7c-.9.9-2.4 1.7-3.8 1.5-.2-1.5.5-3 1.4-3.9.9-1 2.4-1.6 3.8-1.6.2 1.6-.4 3-1.4 4zm2.6 6.8c-1.3-1.6-2.8-2.3-4.4-2.3-2.1 0-3 1-4.5 1s-2.6-1-4.5-1c-1.7 0-3.6 1-4.9 2.8-2.1 3-1.8 8.6 1.7 13.1 1.2 1.6 2.7 3.4 4.7 3.4s2.6-1 4.5-1 2.9 1 4.5 1c2 0 3.5-1.8 4.7-3.4.7-1 1.3-2 1.7-3.1-4.6-1.7-5.3-8.2-.8-10.4z"/>
     </symbol>
     <symbol id="icon-finder" viewBox="0 0 64 64">
       <rect x="4" y="4" width="56" height="56" rx="8" ry="8" fill="#B0C4DE" stroke="#000" stroke-width="2"/>
@@ -323,7 +331,7 @@
   <div id="desktop">
     <div id="menu-bar">
       <div class="menu-item" id="apple-menu">
-        <svg width="16" height="16"><use xlink:href="#rainbow-apple"></use></svg>
+        <svg width="16" height="16"><use xlink:href="#icon-apple"></use></svg>
         Apple
         <ul class="dropdown" id="apple-dropdown">
           <li data-action="about">About This Mac</li>
@@ -358,12 +366,15 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      // Global system configuration
-      window.systemConfig = localStorage.getItem("systemConfig") ? JSON.parse(localStorage.getItem("systemConfig")) : {
-        theme: "default",
-        language: "en",
-        desktopBackground: "#008080"
-      };
+      // Global system configuration with theme (persisted)
+      window.systemConfig = localStorage.getItem("systemConfig")
+          ? JSON.parse(localStorage.getItem("systemConfig"))
+          : { theme: "modern", language: "en", desktopBackground: "#008080" };
+      // Apply theme class on body
+      document.body.classList.remove("theme-modern", "theme-classicos9");
+      document.body.classList.add(
+        window.systemConfig.theme === "classic-os9" ? "theme-classicos9" : "theme-modern"
+      );
 
       // Helper functions
       var $ = function(s, p){ return (p || document).querySelector(s); },
@@ -413,7 +424,6 @@
           }
           console.log("Dropped data:", data);
           if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
-            // Attempt to fetch the page to extract its title and icon.
             fetch(data).then(function(resp) {
               return resp.text();
             }).then(function(htmlText) {
@@ -485,6 +495,14 @@
         w.style.zIndex = zIndexCounter++;
         di.remove();
       }
+      // Animate window close: add "closing" class then remove after transition ends.
+      function animateClose(w) {
+        w.classList.remove("show");
+        w.classList.add("closing");
+        setTimeout(function(){
+          w.remove();
+        }, 300); // match transition duration
+      }
       function createWindow(t, html){
         var w = document.createElement("div");
         w.classList.add("window");
@@ -506,9 +524,8 @@
         cl.classList.add("close");
         cl.title = "Close";
         cl.addEventListener("click", function(e){ 
-          w.remove(); 
-          openFinderWindows = openFinderWindows.filter(function(win){ return win !== w; });
-          e.stopPropagation();
+          e.stopPropagation(); 
+          animateClose(w);
         });
         ctr.appendChild(cl);
         var mn = document.createElement("span");
@@ -558,7 +575,6 @@
         w.appendChild(rh);
         rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
         $("#window-container").appendChild(w);
-        // Trigger the pop-in animation.
         setTimeout(function() { w.classList.add("show"); }, 10);
         return w;
       }
@@ -571,7 +587,6 @@
           position: "absolute",
           width: "64px"
         }});
-        // For apps, if a custom icon URL exists, use an <img> instead of the default SVG.
         if(type === "app" && itemData && itemData.icon && !itemData.icon.startsWith("#")) {
           var img = document.createElement("img");
           img.src = itemData.icon;
@@ -709,11 +724,18 @@
       updateClock();
 
       // -----------------------------
-      // OS abstraction
+      // OS abstraction with theme change support
       var OS = {
         init: function(){ openDesktop(); },
         openFinder: function(folder){ openFinderWindow(folder); },
-        createWindow: function(title, content){ return createWindow(title, content); }
+        createWindow: function(title, content){ return createWindow(title, content); },
+        changeTheme: function(themeName) {
+          window.systemConfig.theme = themeName;
+          localStorage.setItem("systemConfig", JSON.stringify(window.systemConfig));
+          document.body.classList.remove("theme-modern", "theme-classicos9");
+          document.body.classList.add(themeName === "classic-os9" ? "theme-classicos9" : "theme-modern");
+          alert("Theme changed to " + themeName);
+        }
       };
 
       // HTML App: loads URL in iframe with error handling.
@@ -732,14 +754,19 @@
         return w;
       };
 
-      // Code Editor app for editing system configuration.
+      // Code Editor app for editing system configuration (with theme change options added in System Preferences).
       OS.openCodeEditor = function() {
         var configText = JSON.stringify(window.systemConfig, null, 2);
-        var html = '<textarea id="code-editor-textarea" style="width:100%; height: calc(100% - 40px);">' + configText + '</textarea>' +
-                   '<button id="save-config-btn" style="width:100%; height: 40px;">Save Configuration</button>';
-        var w = createWindow("Code Editor", html);
+        var html = '<textarea id="code-editor-textarea" style="width:100%; height: calc(100% - 80px);">' + configText + '</textarea>' +
+                   '<button id="save-config-btn" style="width:100%; height: 40px;">Save Configuration</button>' +
+                   '<br/><label>Theme: </label>' +
+                   '<select id="theme-select">' +
+                     '<option value="modern">Modern</option>' +
+                     '<option value="classic-os9">Classic OS 9</option>' +
+                   '</select>';
+        var w = createWindow("System Preferences", html);
         w.style.width = '600px';
-        w.style.height = '400px';
+        w.style.height = '500px';
         setTimeout(function() {
           var textarea = document.getElementById("code-editor-textarea");
           if (textarea && window.CodeMirror) {
@@ -760,6 +787,14 @@
                 }
               });
             }
+          }
+          var themeSelect = document.getElementById("theme-select");
+          if(themeSelect) {
+            // Set initial selection based on current config.
+            themeSelect.value = window.systemConfig.theme === "classic-os9" ? "classic-os9" : "modern";
+            themeSelect.addEventListener("change", function() {
+              OS.changeTheme(this.value);
+            });
           }
         }, 0);
         return w;
@@ -870,9 +905,11 @@
       }
       function openFolderWindow(item){ openFinderWindow(item); }
 
-      // Top Menu Bar auto-show behavior using hover
+      // Top Menu Bar auto-show behavior using hover with a short delay to prevent premature disappearance
+      var menuHideTimeout;
       $$("#menu-bar .menu-item").forEach(function(item) {
         item.addEventListener("mouseenter", function() {
+          clearTimeout(menuHideTimeout);
           $$("#menu-bar .dropdown").forEach(function(dd) {
             dd.classList.remove("active");
           });
@@ -881,9 +918,11 @@
         });
       });
       $("#menu-bar").addEventListener("mouseleave", function() {
-        $$("#menu-bar .dropdown").forEach(function(dd) {
-          dd.classList.remove("active");
-        });
+        menuHideTimeout = setTimeout(function() {
+          $$("#menu-bar .dropdown").forEach(function(dd) {
+            dd.classList.remove("active");
+          });
+        }, 200);
       });
       
       // Top Menu Bar click actions (for menu item actions)
@@ -893,7 +932,7 @@
           if (action === "about") {
             alert("Retro Mac OS 9\nVersion 1.0");
           } else if (action === "system") {
-            OS.createWindow("System Preferences", "<p>System Preferences window</p>");
+            OS.openCodeEditor();
           } else if (action === "restart") {
             alert("Restarting... (not really)");
           } else if (action === "shutdown") {
@@ -975,6 +1014,5 @@
       OS.init();
     });
   </script>
-  
 </body>
 </html>
