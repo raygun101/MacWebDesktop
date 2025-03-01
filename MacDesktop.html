@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <style>
+    /* Basic reset and fonts */
     body, html {
       width: 100%;
       height: 100%;
@@ -57,28 +58,38 @@
       align-items: center;
     }
     .menu-item svg { margin-right: 4px; }
-    /* Dropdown menus styled with translucency and round corners */
+    /* Dropdown menus with transitions */
     .dropdown {
-      display: none;
       position: absolute;
-      top: 100%;
+      top: 24px;
       left: 0;
       background: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(0,0,0,0.1);
       border-radius: 8px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      z-index: 1001;
       min-width: 150px;
       padding: 5px 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .dropdown.active {
+      opacity: 1;
+      pointer-events: auto;
     }
     .dropdown li {
       list-style: none;
       padding: 5px 20px;
       cursor: pointer;
       white-space: nowrap;
+      transition: background 0.2s ease, color 0.2s ease;
     }
-    .dropdown li:hover { background: rgba(0, 0, 0, 0.1); }
+    /* When hovering a dropdown item, mimic macOS selection: blue background and white text */
+    .dropdown li:hover {
+      background: #0a84ff;
+      color: #fff;
+    }
     #desktop-clock {
       position: absolute;
       right: 10px;
@@ -86,13 +97,20 @@
       font-size: 12px;
       color: #333;
     }
-    /* Window styling with controls on the left */
+    /* Window styling with a pop-in animation */
     .window {
       position: absolute;
       border: 2px solid #666;
       background: #fff;
       box-shadow: 5px 5px 10px rgba(0,0,0,0.5);
       z-index: 200;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    .window.show {
+      transform: scale(1);
+      opacity: 1;
     }
     .window-header {
       background: linear-gradient(to bottom, #ddd, #bbb);
@@ -117,7 +135,7 @@
     .close { background: red; }
     .minimize { background: yellow; }
     .maximize { background: green; }
-    /* Remove extra padding to make content seamless */
+    /* Remove extra padding for seamless content */
     .window-content {
       padding: 0;
       height: calc(100% - 30px);
@@ -133,13 +151,18 @@
       cursor: se-resize;
       background: rgba(0,0,0,0.3);
     }
+    /* Finder icon animations */
     .finder-icon {
       width: 64px;
       text-align: center;
       cursor: pointer;
       position: absolute;
+      transition: transform 0.2s ease;
     }
-    .finder-icon svg {
+    .finder-icon:hover {
+      transform: scale(1.05);
+    }
+    .finder-icon svg, .finder-icon img {
       width: 48px;
       height: 48px;
       display: block;
@@ -365,11 +388,30 @@
           }
           console.log("Dropped data:", data);
           if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
-            addFinderIcon(container, "app", data, e.offsetX, e.offsetY, { 
-              type: "app", 
-              label: data, 
-              url: data, 
-              action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
+            // Attempt to fetch the page to extract its title and icon.
+            fetch(data).then(function(resp) {
+              return resp.text();
+            }).then(function(htmlText) {
+              var parser = new DOMParser();
+              var doc = parser.parseFromString(htmlText, "text/html");
+              var pageTitle = doc.querySelector("title") ? doc.querySelector("title").innerText : data;
+              var iconLink = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
+              var iconUrl = iconLink ? new URL(iconLink.getAttribute("href"), data).href : null;
+              addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, { 
+                type: "app", 
+                label: pageTitle, 
+                url: data,
+                icon: iconUrl,
+                action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
+              });
+            }).catch(function(err) {
+              console.error("Failed to fetch URL: ", err);
+              addFinderIcon(container, "app", data, e.offsetX, e.offsetY, { 
+                type: "app", 
+                label: data, 
+                url: data, 
+                action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
+              });
             });
           }
         });
@@ -491,6 +533,8 @@
         w.appendChild(rh);
         rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
         $("#window-container").appendChild(w);
+        // Trigger the pop-in animation.
+        setTimeout(function() { w.classList.add("show"); }, 10);
         return w;
       }
       function addFinderIcon(container, type, label, left, top, itemData, store){
@@ -502,10 +546,17 @@
           position: "absolute",
           width: "64px"
         }});
-        var svg = create("svg:svg", { width: "48", height: "48" }),
-            use = create("svg:use", { "xlink:href": type === "folder" ? (itemData && itemData.isTrash ? "#icon-trash" : "#icon-folder") : (type === "file" ? "#icon-file" : "#icon-finder") });
-        svg.appendChild(use);
-        icon.appendChild(svg);
+        // For apps, if a custom icon URL exists, use an <img> instead of the default SVG.
+        if(type === "app" && itemData && itemData.icon && !itemData.icon.startsWith("#")) {
+          var img = document.createElement("img");
+          img.src = itemData.icon;
+          icon.appendChild(img);
+        } else {
+          var svg = create("svg:svg", { width: "48", height: "48" }),
+              use = create("svg:use", { "xlink:href": type === "folder" ? (itemData && itemData.isTrash ? "#icon-trash" : "#icon-folder") : (type === "file" ? "#icon-file" : "#icon-finder") });
+          svg.appendChild(use);
+          icon.appendChild(svg);
+        }
         var txt = create("div", { text: label });
         icon.appendChild(txt);
         if(itemData){
@@ -735,7 +786,7 @@
       on(document, "click", function(){ 
         $("#finder-context-menu").style.display = "none"; 
         $$(".dropdown").forEach(function(menu) {
-          menu.style.display = "none";
+          menu.classList.remove("active");
         });
       });
       var currentContextContainer = null;
@@ -794,20 +845,19 @@
       }
       function openFolderWindow(item){ openFinderWindow(item); }
 
-      // Top Menu Bar auto-show behavior
+      // Top Menu Bar auto-show behavior using hover
       $$("#menu-bar .menu-item").forEach(function(item) {
         item.addEventListener("mouseenter", function() {
-          // Hide other menus
           $$("#menu-bar .dropdown").forEach(function(dd) {
-            dd.style.display = "none";
+            dd.classList.remove("active");
           });
           var dropdown = item.querySelector(".dropdown");
-          if(dropdown) dropdown.style.display = "block";
+          if(dropdown) dropdown.classList.add("active");
         });
       });
       $("#menu-bar").addEventListener("mouseleave", function() {
         $$("#menu-bar .dropdown").forEach(function(dd) {
-          dd.style.display = "none";
+          dd.classList.remove("active");
         });
       });
       
@@ -900,5 +950,6 @@
       OS.init();
     });
   </script>
+  
 </body>
 </html>
