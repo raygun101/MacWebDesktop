@@ -81,6 +81,7 @@
       font-size: 12px;
       color: #333;
     }
+    /* Window styles: header now places controls on the left */
     .window {
       position: absolute;
       border: 2px solid #666;
@@ -94,10 +95,13 @@
       cursor: move;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+    }
+    .window-header .window-controls {
+      margin-right: 10px;
+      display: flex;
+      gap: 4px;
     }
     .title { font-weight: bold; }
-    .window-controls { display: flex; gap: 4px; }
     .window-controls span {
       width: 16px;
       height: 16px;
@@ -109,6 +113,7 @@
     .minimize { background: yellow; }
     .maximize { background: green; }
     .window-content {
+      padding: 10px;
       height: calc(100% - 30px);
       overflow: auto;
       position: relative;
@@ -236,7 +241,6 @@
   <!-- Desktop background: medium teal color scheme -->
   <svg id="desktop-background" width="100%" height="100%" viewBox="0 0 800 600" preserveAspectRatio="none">
       <defs>
-        <!-- Medium teal background gradient -->
         <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#008080">
             <animate attributeName="stop-color" values="#008080;#20B2AA;#008080" dur="20s" repeatCount="indefinite"/>
@@ -246,17 +250,11 @@
           </stop>
         </linearGradient>
       </defs>
-    
-      <!-- Background -->
       <rect width="100%" height="100%" fill="url(#bgGradient)" />
-    
-      <!-- Subtle animated circle -->
       <circle cx="400" cy="300" r="100" fill="rgba(200, 200, 200, 0.3)">
         <animate attributeName="cx" values="380;420;380" dur="30s" repeatCount="indefinite"/>
         <animate attributeName="cy" values="300;320;300" dur="30s" repeatCount="indefinite"/>
       </circle>
-    
-      <!-- Rotating ellipse -->
       <ellipse cx="400" cy="300" rx="150" ry="80" fill="rgba(255, 255, 255, 0.2)">
         <animateTransform attributeName="transform" attributeType="XML"
                           type="rotate"
@@ -305,7 +303,7 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      // Global system configuration (load from localStorage if available)
+      // Global system configuration
       window.systemConfig = localStorage.getItem("systemConfig") ? JSON.parse(localStorage.getItem("systemConfig")) : {
           theme: "default",
           language: "en",
@@ -345,8 +343,7 @@
           openFinderWindows = [];
 
       // -----------------------------
-      // External link drop support: if an external link is dropped onto a Finder container,
-      // create a new app icon that will open the link in an HTML window.
+      // External link drop support:
       function setupExternalLinkDrop(container) {
         container.addEventListener("dragover", function(e) {
           e.preventDefault();
@@ -354,8 +351,14 @@
         container.addEventListener("drop", function(e) {
           e.preventDefault();
           var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
-          if (data && data.startsWith("http")) {
-            // Create a new app icon for the dropped URL
+          if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
+            // Fallback for file drops – create a blob URL.
+            var file = e.dataTransfer.files[0];
+            data = URL.createObjectURL(file);
+            console.log("Dropped file; blob URL: ", data);
+          }
+          console.log("Dropped data:", data);
+          if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
             addFinderIcon(container, "app", data, e.offsetX, e.offsetY, { 
               type: "app", 
               label: data, 
@@ -400,7 +403,7 @@
         var d = $("#dock"),
             di = document.createElement("div");
         di.classList.add("dock-icon");
-        di.textContent = w.querySelector(".window-header .title").textContent;
+        di.textContent = w.querySelector(".title").textContent;
         di.addEventListener("click", function(){ restoreWindow(w, di); });
         d.appendChild(di);
       }
@@ -423,9 +426,7 @@
         });
         var h = document.createElement("div");
         h.classList.add("window-header");
-        var ts = document.createElement("span");
-        ts.classList.add("title");
-        ts.textContent = t;
+        // Place controls on the left:
         var ctr = document.createElement("div");
         ctr.classList.add("window-controls");
         var cl = document.createElement("span");
@@ -467,8 +468,12 @@
           }
         });
         ctr.appendChild(mx);
-        h.appendChild(ts);
+        // Insert controls first, then title:
         h.appendChild(ctr);
+        var ts = document.createElement("span");
+        ts.classList.add("title");
+        ts.textContent = t;
+        h.appendChild(ts);
         w.appendChild(h);
         var cd = document.createElement("div");
         cd.classList.add("window-content");
@@ -630,9 +635,7 @@
         createWindow: function(title, content){ return createWindow(title, content); }
       };
 
-      // NEW: Allow an app to be an HTML app by loading a URL in an iframe.
-      // If the iframe errors, show the old-school Apple error icon.
-      // The window is resized initially to the desired width and height.
+      // HTML App: loads URL in iframe with error handling.
       OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
         var html = '<iframe src="' + url + '" style="width: 100%; height: 100%; border: none;"></iframe>';
         var w = createWindow(title, html);
@@ -648,7 +651,7 @@
         return w;
       };
 
-      // NEW: Code Editor app for editing system configuration via CodeMirror.
+      // Code Editor app for editing system configuration.
       OS.openCodeEditor = function() {
         var configText = JSON.stringify(window.systemConfig, null, 2);
         var html = '<textarea id="code-editor-textarea" style="width:100%; height: calc(100% - 40px);">' + configText + '</textarea>' +
@@ -757,7 +760,6 @@
         renderFolderContents(filesystem.desktop, d);
         setupFinderContextMenu(d);
       }
-      // Modified renderFolderContents to also setup external link drop support.
       function renderFolderContents(folder, container){
         container.innerHTML = "";
         folder.folderContents.forEach(function(item){
@@ -787,6 +789,54 @@
       }
       function openFolderWindow(item){ openFinderWindow(item); }
 
+      // Top Menu Bar actions
+      $("#apple-menu").addEventListener("click", function(e){
+        var dropdown = this.querySelector(".dropdown");
+        if(dropdown) {
+          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+        e.stopPropagation();
+      });
+      $("#apple-dropdown").addEventListener("click", function(e) {
+        var action = e.target.getAttribute("data-action");
+        if (action) {
+          if (action === "about") {
+            alert("Retro Mac OS 9\nVersion 1.0");
+          } else if (action === "system") {
+            OS.createWindow("System Preferences", "<p>System Preferences window</p>");
+          } else if (action === "restart") {
+            alert("Restarting... (not really)");
+          } else if (action === "shutdown") {
+            alert("Shutting down... (not really)");
+          }
+        }
+      });
+      $("#file-menu").addEventListener("click", function(e){
+        var dropdown = this.querySelector(".dropdown");
+        if(dropdown) {
+          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+        }
+        e.stopPropagation();
+      });
+      $("#file-dropdown").addEventListener("click", function(e) {
+        var action = e.target.getAttribute("data-action");
+        if (action) {
+          if (action === "new-finder") {
+            OS.openFinder(filesystem.desktop);
+          } else if (action === "new-folder") {
+            addFinderIcon(document.getElementById("desktop-content"), "folder", "New Folder " + newFolderCounter++, 20, 20, null, true);
+          } else if (action === "new-file") {
+            addFinderIcon(document.getElementById("desktop-content"), "file", "New File " + newFileCounter++, 20, 20, null, true);
+          } else if (action === "empty-trash") {
+            var trashFolder = filesystem.desktop.folderContents.find(function(item) { return item.isTrash; });
+            if (trashFolder) {
+              trashFolder.folderContents = [];
+              renderFolderContents(filesystem.desktop, document.getElementById("desktop-content"));
+            }
+          }
+        }
+      });
+
       // -----------------------------
       // Shared filesystem – note OS is now defined so actions can call it
       var filesystem = {
@@ -801,51 +851,35 @@
               action: function(){ OS.createWindow("My Picture", 
               '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">\n' +
               '  <defs>\n' +
-              '    <!-- Pastel sky gradient -->\n' +
               '    <linearGradient id="skyGradient" x1="0" y1="0" x2="0" y2="1">\n' +
               '      <stop offset="0%" stop-color="#FFDEE9"/>\n' +
               '      <stop offset="100%" stop-color="#B5FFFC"/>\n' +
               '    </linearGradient>\n' +
-              '    <!-- Pastel hill gradient -->\n' +
               '    <linearGradient id="hillGradient" x1="0" y1="0" x2="0" y2="1">\n' +
               '      <stop offset="0%" stop-color="#D4FC79"/>\n' +
               '      <stop offset="100%" stop-color="#96E6A1"/>\n' +
               '    </linearGradient>\n' +
-              '    <!-- Soft sun gradient -->\n' +
               '    <radialGradient id="sunGradient" cx="0.5" cy="0.5" r="0.5">\n' +
               '      <stop offset="0%" stop-color="#FFF9C4"/>\n' +
               '      <stop offset="100%" stop-color="#FFECB3"/>\n' +
               '    </radialGradient>\n' +
-              '    <!-- Tree leaves gradient -->\n' +
               '    <radialGradient id="treeLeavesGradient" cx="0.5" cy="0.5" r="0.5">\n' +
               '      <stop offset="0%" stop-color="#B2DFDB"/>\n' +
               '      <stop offset="100%" stop-color="#80CBC4"/>\n' +
               '    </radialGradient>\n' +
               '  </defs>\n' +
-              '  \n' +
-              '  <!-- Background sky -->\n' +
               '  <rect width="100%" height="100%" fill="url(#skyGradient)" />\n' +
-              '  \n' +
-              '  <!-- Sun in the top right -->\n' +
               '  <circle cx="700" cy="100" r="50" fill="url(#sunGradient)" />\n' +
-              '  \n' +
-              '  <!-- Rolling hill at the bottom -->\n' +
               '  <path d="M0 500 Q400 400 800 500 L800 600 L0 600 Z" fill="url(#hillGradient)" />\n' +
-              '  \n' +
-              '  <!-- Relaxing tree -->\n' +
               '  <g id="tree" transform="translate(200,500)">\n' +
-              '    <!-- Tree trunk -->\n' +
               '    <rect x="-10" y="-60" width="20" height="60" fill="#8B4513" />\n' +
-              '    <!-- Tree foliage (three overlapping circles) -->\n' +
               '    <circle cx="0" cy="-80" r="40" fill="url(#treeLeavesGradient)" />\n' +
               '    <circle cx="-30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />\n' +
               '    <circle cx="30" cy="-70" r="30" fill="url(#treeLeavesGradient)" />\n' +
               '  </g>\n' +
               '</svg>'); } },
-            // NEW: HTML App that loads an external URL in an iframe.
             { type:"app", label:"HTML App", left:300, top:150, icon:"#icon-folder",
               action: function(){ OS.createHTMLWindow("HTML App", "https://www.example.com", 800, 600); } },
-            // NEW: Code Editor app for editing the system configuration.
             { type:"app", label:"Code Editor", left:350, top:200, icon:"#icon-folder",
               action: function(){ OS.openCodeEditor(); } },
             { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
@@ -856,22 +890,6 @@
       // -----------------------------
       // Initialize the OS
       OS.init();
-
-      // Menu events for Apple and File menus
-      on($("#apple-menu"), "click", function(e){
-        var dropdown = this.querySelector(".dropdown");
-        if(dropdown) {
-          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-        }
-        e.stopPropagation();
-      });
-      on($("#file-menu"), "click", function(e){
-        var dropdown = this.querySelector(".dropdown");
-        if(dropdown) {
-          dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
-        }
-        e.stopPropagation();
-      });
     });
   </script>
 </body>
