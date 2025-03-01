@@ -242,8 +242,33 @@
 <body>
   <div id="drag-layer"></div>
   <svg id="icons">
-    <symbol id="icon-apple" viewBox="0 0 24 24">
-      <path d="M16.5 1.7c-.9.9-2.4 1.7-3.8 1.5-.2-1.5.5-3 1.4-3.9.9-1 2.4-1.6 3.8-1.6.2 1.6-.4 3-1.4 4zm2.6 6.8c-1.3-1.6-2.8-2.3-4.4-2.3-2.1 0-3 1-4.5 1s-2.6-1-4.5-1c-1.7 0-3.6 1-4.9 2.8-2.1 3-1.8 8.6 1.7 13.1 1.2 1.6 2.7 3.4 4.7 3.4s2.6-1 4.5-1 2.9 1 4.5 1c2 0 3.5-1.8 4.7-3.4.7-1 1.3-2 1.7-3.1-4.6-1.7-5.3-8.2-.8-10.4z"/>
+    <symbol id="rainbow-apple" viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="rainbowGradient" gradientTransform="rotate(90)">
+          <stop offset="0%" stop-color="#FF2D55"/>
+          <stop offset="20%" stop-color="#FF9500"/>
+          <stop offset="40%" stop-color="#FFCC00"/>
+          <stop offset="60%" stop-color="#4CD964"/>
+          <stop offset="80%" stop-color="#5AC8FA"/>
+          <stop offset="100%" stop-color="#007AFF"/>
+        </linearGradient>
+        <clipPath id="bite">
+          <rect x="0" y="0" width="100" height="100" />
+          <circle cx="80" cy="40" r="10"/>
+        </clipPath>
+      </defs>
+      <g clip-path="url(#bite)">
+        <path fill="url(#rainbowGradient)" d="
+          M50,10
+          C35,10 20,25 20,40
+          C20,60 40,75 50,85
+          C60,75 80,60 80,40
+          C80,25 65,10 50,10
+          Z"/>
+      </g>
+      <path fill="url(#rainbowGradient)" d="
+          M55,15
+          C60,5 75,5 70,15" />
     </symbol>
     <symbol id="icon-finder" viewBox="0 0 64 64">
       <rect x="4" y="4" width="56" height="56" rx="8" ry="8" fill="#B0C4DE" stroke="#000" stroke-width="2"/>
@@ -298,7 +323,7 @@
   <div id="desktop">
     <div id="menu-bar">
       <div class="menu-item" id="apple-menu">
-        <svg width="16" height="16"><use xlink:href="#icon-apple"></use></svg>
+        <svg width="16" height="16"><use xlink:href="#rainbow-apple"></use></svg>
         Apple
         <ul class="dropdown" id="apple-dropdown">
           <li data-action="about">About This Mac</li>
