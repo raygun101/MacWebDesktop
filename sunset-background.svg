@@ -1,0 +1,28 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient for the sky -->
+    <linearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFA500"/>
+      <stop offset="100%" stop-color="#8A2BE2"/>
+    </linearGradient>
+  </defs>
+  <!-- Sky background -->
+  <rect width="800" height="400" fill="url(#bgGradient)" />
+  
+  <!-- Animated Sun -->
+  <circle cx="400" cy="150" r="40" fill="#FFD700">
+    <animate attributeName="cy" from="150" to="400" dur="10s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Wavy ocean -->
+  <g fill="#1E90FF">
+    <!-- First wave layer -->
+    <path d="M0 350 Q100 330 200 350 T400 350 T600 350 T800 350 V400 H0 Z">
+      <animateTransform attributeName="transform" type="translate" from="0 0" to="-50 0" dur="5s" repeatCount="indefinite" />
+    </path>
+    <!-- Second wave layer (with some transparency) -->
+    <path d="M0 360 Q100 340 200 360 T400 360 T600 360 T800 360 V400 H0 Z" opacity="0.5">
+      <animateTransform attributeName="transform" type="translate" from="0 0" to="50 0" dur="7s" repeatCount="indefinite" />
+    </path>
+  </g>
+</svg>
