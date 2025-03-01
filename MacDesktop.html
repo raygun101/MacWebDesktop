@@ -739,20 +739,81 @@
       };
 
       // HTML App: loads URL in iframe with error handling.
-      OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
-        var html = '<iframe src="' + url + '" style="width: 100%; height: 100%; border: none;"></iframe>';
-        var w = createWindow(title, html);
-        w.style.width = desiredWidth + 'px';
-        w.style.height = desiredHeight + 'px';
-        var iframe = w.querySelector("iframe");
-        iframe.onerror = function() {
-          var contentDiv = w.querySelector(".window-content");
-          contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
-                                 '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
-                                 '<p>Page failed to load</p></div>';
+    OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
+    var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
+    var w = OS.createWindow(title, loadingHTML);
+    w.style.width = desiredWidth + 'px';
+    w.style.height = desiredHeight + 'px';
+
+    // Create the iframe but do not add it immediately.
+    var iframe = document.createElement("iframe");
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "none";
+    iframe.src = url;
+
+    iframe.onload = function() {
+      console.log("Iframe loaded:", url);
+      try {
+        iframe.contentWindow.desktopCore = {
+          closeApp: function() {
+            animateClose(w);
+          }
         };
-        return w;
-      };
+
+        // **Extract Favicon**
+        var iconUrl = getFaviconFromIframe(iframe);
+        if (iconUrl) {
+          setWindowIcon(w, iconUrl);
+        }
+      } catch (err) {
+        console.error("Injection failed:", err);
+      }
+
+      // Replace loading screen with iframe
+      var contentDiv = w.querySelector(".window-content");
+      contentDiv.innerHTML = "";
+      contentDiv.appendChild(iframe);
+      w.classList.add("show");
+    };
+
+    iframe.onerror = function() {
+      var contentDiv = w.querySelector(".window-content");
+      contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
+                             '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
+                             '<p>Page failed to load</p></div>';
+    };
+
+    return w;
+  };
+
+  function getFaviconFromIframe(iframe) {
+    try {
+      var doc = iframe.contentDocument || iframe.contentWindow.document;
+      var icon = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
+      return icon ? icon.href : null;
+    } catch (err) {
+      console.warn("Could not access iframe document:", err);
+      return null;
+    }
+  }
+
+  function setWindowIcon(windowElement, iconUrl) {
+    var titleBar = windowElement.querySelector(".window-title-bar");
+    var existingIcon = titleBar.querySelector(".window-icon");
+    
+    if (!existingIcon) {
+      var icon = document.createElement("img");
+      icon.className = "window-icon";
+      icon.style.width = "16px";
+      icon.style.height = "16px";
+      icon.style.marginRight = "5px";
+      titleBar.insertBefore(icon, titleBar.firstChild);
+    }
+
+    titleBar.querySelector(".window-icon").src = iconUrl;
+  }
+
 
       // Code Editor app for editing system configuration (with theme change options added in System Preferences).
       OS.openCodeEditor = function() {

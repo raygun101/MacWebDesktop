@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Retro Vector Asteroids</title>
-  <link rel="icon" href="Asteroids.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" href="Asteroids.png">
   <style>
     /* Global Styles */
     body, html {
@@ -37,9 +38,8 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: 
-        linear-gradient(black 50%, transparent 50%),
-        linear-gradient(90deg, black 50%, transparent 50%);
+      background: linear-gradient(black 50%, transparent 50%),
+                  linear-gradient(90deg, black 50%, transparent 50%);
       background-size: 100% 2px, 3px 100%;
       opacity: 0.15;
     }
@@ -54,7 +54,7 @@
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(0,0,0,0.85);
       color: #0f0;
       z-index: 100;
     }
@@ -83,12 +83,12 @@
     <h1>Retro Vector Asteroids</h1>
     <button id="startBtn">Start Game</button>
   </div>
-  <div id="gameOverScreen" class="overlay" style="display: none;">
+  <div id="gameOverScreen" class="overlay" style="display:none;">
     <h1>Game Over</h1>
     <button id="restartBtn">Restart</button>
     <button id="creditsBtn">Credits</button>
   </div>
-  <div id="creditsScreen" class="overlay" style="display: none;">
+  <div id="creditsScreen" class="overlay" style="display:none;">
     <h1>Credits</h1>
     <p>Developed by Your Name</p>
     <button id="backToMenuBtn">Back to Menu</button>
@@ -96,13 +96,14 @@
   
   <script>
     (function(){
-      /***** Global Configuration *****/
+      //––––– CONFIGURATION –––––//
       const config = {
         ship: {
           acceleration: 0.15,
           drag: 0.98,
           maxVelocity: 7,
-          rotationSpeed: 0.1
+          rotationSpeed: 0.1,
+          trailLength: 5  // Longer, slower trail
         },
         bullet: {
           speed: 7,
@@ -110,11 +111,12 @@
         },
         asteroid: {
           initialCount: 5,
-          defaultRadius: 40
+          defaultRadius: 40,
+          trailLength: 5
         },
         particles: {
           thruster: {
-            count: 3,       // particles per frame when thrusting
+            count: 3,
             life: 20,
             color: "blue",
             speed: 2,
@@ -123,20 +125,20 @@
           explosion: {
             count: 40,
             life: 40,
-            color: "#0f0",  // explosion debris
+            color: "#0f0",
             speed: 3,
             size: 2
           },
           shipExplosion: {
             count: 60,
-            ringLife: 80,   // frames for explosion/beam effect
-            color: "#00f",  // blue rings for beam-in
+            ringLife: 100,  // Slower ship explosion
+            color: "#00f",
             lineWidth: 4
           }
         },
         ufo: {
           speed: 2,
-          shootCooldown: 120, // frames between shots
+          shootCooldown: 120,
           scoreValue: 50
         },
         score: {
@@ -149,26 +151,48 @@
           ufoShoot: { frequency: 400, type: "square", duration: 0.1, volume: 0.3 },
           ufoExplosion: { frequency: 250, type: "sawtooth", duration: 0.2, volume: 0.5 },
           shipExplosion: { frequency: 100, type: "sine", duration: 0.3, volume: 0.5 },
-          thrust: { frequency: 300, type: "sine", volume: 0.2 }, // sustained thrust sound
-          background: { frequency: 50, type: "sawtooth", volume: 0.1 } // background loop sound
+          thrust: { frequency: 300, type: "sine", volume: 0.2 },
+          background: { frequency: 50, type: "sawtooth", volume: 0.1 }
+        },
+        beamDelay: 600, // ms delay until ship appears after beam effect
+        // Explosion sets per object type
+        explosions: {
+          asteroid: [
+            { color: "yellow", lineWidth: 4, finalRadiusFactor: 3, life: 80 },
+            { color: "yellow", lineWidth: 4, finalRadiusFactor: 4, life: 100 }
+          ],
+          ship: [
+            { color: "red", lineWidth: 4, finalRadiusFactor: 3, life: 80 }
+          ]
         }
       };
 
-      /***** Helper Functions *****/
-      // Shorter selector function
-      function select(id) {
-        return document.getElementById(id);
-      }
-      // on() helper to attach event listeners
-      function on(selector, event, callback) {
-        select(selector).addEventListener(event, callback);
-      }
+      //––––– HELPER FUNCTIONS –––––//
+      function select(id) { return document.getElementById(id); }
+      function on(selector, event, callback) { select(selector).addEventListener(event, callback); }
 
-      /***** Extended Oscillator Class for 8-bit Sounds *****/
+      //––––– GLOBAL VARIABLES –––––//
+      let ship, asteroids = [], bullets = [], particles = [], effects = [];
+      let starLayers = [];  // Starfield layers
+
+      let gameState = "start"; // "start", "starting", "playing", "gameover"
+      let score = 0;
+      const keys = {};
+      document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        if (gameState === "playing") {
+          gameOver();
+        } else {
+          window.desktopCore.closeApp();
+        }
+      }
+    });
+      document.addEventListener("keyup", e => { keys[e.key] = false; });
+
+      //––––– AUDIO: Extended Oscillator Class –––––//
       class Oscillator {
         constructor() {
           this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          // Store sustained sound sources by ID
           this.sustainedSources = {};
         }
         playSound(frequency, type, duration, volume = 0.5) {
@@ -182,7 +206,6 @@
           osc.start();
           osc.stop(this.audioCtx.currentTime + duration);
         }
-        // Starts a sustained sound if not already playing.
         startSustainedSound(id, frequency, type, volume = 0.5) {
           if (!this.sustainedSources[id]) {
             let osc = this.audioCtx.createOscillator();
@@ -196,7 +219,6 @@
             this.sustainedSources[id] = { osc, gainNode };
           }
         }
-        // Stops a sustained sound by ID.
         stopSustainedSound(id) {
           if (this.sustainedSources[id]) {
             this.sustainedSources[id].osc.stop();
@@ -206,43 +228,37 @@
       }
       const osc = new Oscillator();
 
-      /***** Setup Canvas *****/
+      //––––– CANVAS SETUP –––––//
       const canvas = select("gameCanvas");
       const ctx = canvas.getContext("2d");
       function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        initStars();
       }
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
-      /***** Global Game State *****/
-      let gameState = "start"; // "start", "starting", "playing", "gameover"
-      let score = 0;
-      const keys = {};
-      document.addEventListener("keydown", (e) => { keys[e.key] = true; });
-      document.addEventListener("keyup", (e) => { keys[e.key] = false; });
-
-      /***** Parallax Starfield *****/
-      let starLayers = [];
+      //––––– STARFIELD FUNCTIONS –––––//
       function initStars() {
         starLayers = [];
         const layersConfig = [
-          { count: 100, speed: 0.6, baseAlpha: 1.0, sizeRange: [1,2] },
-          { count: 75, speed: 0.4, baseAlpha: 0.7, sizeRange: [1,1.5] },
-          { count: 50, speed: 0.2, baseAlpha: 0.5, sizeRange: [0.8,1.2] },
-          { count: 30, speed: 0.1, baseAlpha: 0.3, sizeRange: [0.5,1.0] }
+          { count: 100, speed: 0.6, baseAlpha: 1.0, sizeRange: [1, 2] },
+          { count: 75, speed: 0.4, baseAlpha: 0.7, sizeRange: [1, 1.5] },
+          { count: 50, speed: 0.2, baseAlpha: 0.5, sizeRange: [0.8, 1.2] },
+          { count: 30, speed: 0.1, baseAlpha: 0.3, sizeRange: [0.5, 1.0] }
         ];
         layersConfig.forEach(layer => {
           const stars = [];
-          for(let i = 0; i < layer.count; i++){
+          for (let i = 0; i < layer.count; i++) {
             stars.push({
               x: Math.random() * canvas.width,
               y: Math.random() * canvas.height,
               radius: Math.random() * (layer.sizeRange[1] - layer.sizeRange[0]) + layer.sizeRange[0],
               speedFactor: layer.speed,
               baseAlpha: layer.baseAlpha,
-              phase: Math.random() * Math.PI * 2
+              phase: Math.random() * Math.PI * 2,
+              flare: (Math.random() < 0.3) ? Math.random() * 3 + 2 : 0
             });
           }
           starLayers.push(stars);
@@ -250,15 +266,15 @@
       }
       initStars();
       function updateStars() {
-        if(ship) {
+        if (ship) {
           starLayers.forEach(stars => {
             stars.forEach(star => {
               star.x -= ship.velocity.x * star.speedFactor;
               star.y -= ship.velocity.y * star.speedFactor;
-              if(star.x < 0) star.x = canvas.width;
-              if(star.x > canvas.width) star.x = 0;
-              if(star.y < 0) star.y = canvas.height;
-              if(star.y > canvas.height) star.y = 0;
+              if (star.x < 0) star.x = canvas.width;
+              if (star.x > canvas.width) star.x = 0;
+              if (star.y < 0) star.y = canvas.height;
+              if (star.y > canvas.height) star.y = 0;
             });
           });
         }
@@ -269,13 +285,25 @@
             const twinkle = star.baseAlpha + 0.2 * Math.sin(Date.now()/500 + star.phase);
             ctx.fillStyle = "rgba(255,255,255," + twinkle + ")";
             ctx.beginPath();
-            ctx.arc(star.x, star.y, star.radius, 0, Math.PI*2);
+            ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
             ctx.fill();
+            if (star.flare) {
+              let flareSize = star.flare * (1 + 0.3 * Math.sin(Date.now()/200 + star.phase));
+              let grad = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, flareSize);
+              grad.addColorStop(0, "rgba(255,255,255,0.8)");
+              grad.addColorStop(1, "rgba(255,255,255,0)");
+              ctx.fillStyle = grad;
+              ctx.beginPath();
+              ctx.arc(star.x, star.y, flareSize, 0, Math.PI * 2);
+              ctx.fill();
+            }
           });
         });
       }
 
-      /***** Particle Class *****/
+      //––––– CLASS DEFINITIONS –––––//
+
+      // Particle class (for explosions and thrusters)
       class Particle {
         constructor(x, y, angle, speed, life, color, size) {
           this.x = x;
@@ -309,8 +337,7 @@
         }
       }
 
-      /***** Ring Effect Class *****/
-      // Modified to support reverse mode (for beam-in)
+      // Ring effect for explosions and beam-in
       class Ring {
         constructor(x, y, initialRadius, finalRadius, life, color, lineWidth, reverse = false) {
           this.x = x;
@@ -330,7 +357,6 @@
             let progress = 1 - this.life / this.maxLife;
             this.radius = progress * this.finalRadius;
           } else {
-            // Reverse: shrink from a large radius down to a small one (usually 0)
             let progress = this.life / this.maxLife;
             this.radius = this.finalRadius + progress * (this.initialRadius - this.finalRadius);
           }
@@ -340,7 +366,7 @@
         draw() {
           ctx.save();
           ctx.strokeStyle = this.color;
-          ctx.lineWidth = this.lineWidth;
+          ctx.lineWidth = this.reverse ? this.lineWidth * 2 : this.lineWidth;
           ctx.globalAlpha = this.life / this.maxLife;
           ctx.shadowBlur = 10;
           ctx.shadowColor = this.color;
@@ -356,10 +382,7 @@
         }
       }
 
-      /***** Global Game Object Arrays *****/
-      let ship, asteroids = [], bullets = [], particles = [], effects = [];
-
-      /***** Ship Class *****/
+      // Ship class with a rainbow trail
       class Ship {
         constructor() {
           this.x = canvas.width / 2;
@@ -369,6 +392,7 @@
           this.rotation = 0;
           this.velocity = { x: 0, y: 0 };
           this.thrusting = false;
+          this.trail = []; // Array of { x, y, angle }
         }
         update() {
           if (keys["ArrowLeft"]) this.rotation = -config.ship.rotationSpeed;
@@ -386,8 +410,8 @@
             for (let i = 0; i < config.particles.thruster.count; i++) {
               const offsetAngle = this.angle + Math.PI + (Math.random() - 0.5) * 0.4;
               particles.push(new Particle(
-                this.x - Math.cos(this.angle) * 20,
-                this.y - Math.sin(this.angle) * 20,
+                this.x - Math.cos(this.angle) * 40,
+                this.y - Math.sin(this.angle) * 40,
                 offsetAngle,
                 config.particles.thruster.speed * (Math.random() + 0.5),
                 config.particles.thruster.life,
@@ -395,12 +419,10 @@
                 config.particles.thruster.size
               ));
             }
-            // Start sustained thrust sound if not already playing.
             osc.startSustainedSound("thrust", config.sounds.thrust.frequency, config.sounds.thrust.type, config.sounds.thrust.volume);
           } else {
             this.thrusting = false;
             osc.stopSustainedSound("thrust");
-            // Apply drag / friction when not thrusting.
             this.velocity.x *= config.ship.drag;
             this.velocity.y *= config.ship.drag;
           }
@@ -415,12 +437,33 @@
           if (this.x > canvas.width) this.x = 0;
           if (this.y < 0) this.y = canvas.height;
           if (this.y > canvas.height) this.y = 0;
+          this.trail.push({ x: this.x, y: this.y, angle: this.angle });
+          if (this.trail.length > config.ship.trailLength) this.trail.shift();
         }
         draw() {
+          // Draw rainbow trail by re-rendering the ship shape.
+          for (let i = 0; i < this.trail.length; i++) {
+            const state = this.trail[i];
+            const t = i / this.trail.length;
+            ctx.save();
+            ctx.globalAlpha = t * 0.5;
+            ctx.translate(state.x, state.y);
+            ctx.rotate(state.angle);
+            ctx.strokeStyle = `hsl(${t * 360}, 100%, 50%)`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(20, 0);
+            ctx.lineTo(-10, -10);
+            ctx.lineTo(-10, 10);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
+          // Draw current ship in white.
           ctx.save();
           ctx.translate(this.x, this.y);
           ctx.rotate(this.angle);
-          ctx.strokeStyle = "#0f0";
+          ctx.strokeStyle = "white";
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(20, 0);
@@ -429,18 +472,23 @@
           ctx.closePath();
           ctx.stroke();
           if (this.thrusting) {
+            const speed = Math.hypot(this.velocity.x, this.velocity.y);
+            const baseFlameLength = 10;
+            const flameGrowth = speed * 5; // Adjust multiplier as needed
+            const flicker = 5 * Math.sin(Date.now() / 100);
+            const flameLength = baseFlameLength + flameGrowth + flicker;
             ctx.beginPath();
             ctx.moveTo(-10, -5);
-            ctx.lineTo(-18, 0);
+            ctx.lineTo(-10 - flameLength, 0);
             ctx.lineTo(-10, 5);
-            ctx.strokeStyle = "blue";
+            ctx.strokeStyle = "orange";
             ctx.stroke();
           }
           ctx.restore();
         }
       }
 
-      /***** Asteroid Class *****/
+      // Asteroid class with configurable trail
       class Asteroid {
         constructor(x, y, radius, level = 0) {
           this.x = x;
@@ -458,6 +506,7 @@
             const offset = Math.random() * this.radius / 2;
             this.vertices.push(this.radius - offset);
           }
+          this.trail = [];
         }
         update() {
           this.x += this.velocity.x;
@@ -466,19 +515,47 @@
           if (this.x > canvas.width) this.x = 0;
           if (this.y < 0) this.y = canvas.height;
           if (this.y > canvas.height) this.y = 0;
+          this.trail.push({ x: this.x, y: this.y, angle: this.angle });
+          if (this.trail.length > config.asteroid.trailLength) this.trail.shift();
         }
         draw() {
+          // Draw trail using asteroid shape.
+          for (let i = 0; i < this.trail.length; i++) {
+            const state = this.trail[i];
+            const t = i / this.trail.length;
+            ctx.save();
+            ctx.globalAlpha = t * 0.5;
+            ctx.translate(state.x, state.y);
+            ctx.rotate(state.angle);
+            ctx.strokeStyle = `hsl(${(t * 360 + 180) % 360}, 100%, 50%)`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            const count = this.vertices.length;
+            for (let j = 0; j < count; j++) {
+              const ang = (j / count) * Math.PI * 2;
+              const r = this.vertices[j];
+              const x = Math.cos(ang) * r;
+              const y = Math.sin(ang) * r;
+              if (j === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
+          // Draw current asteroid shape.
           ctx.save();
           ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
           ctx.strokeStyle = "#0f0";
           ctx.lineWidth = 2;
           ctx.beginPath();
           const count = this.vertices.length;
           for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2;
+            const ang = (i / count) * Math.PI * 2;
             const r = this.vertices[i];
-            const x = Math.cos(angle) * r;
-            const y = Math.sin(angle) * r;
+            const x = Math.cos(ang) * r;
+            const y = Math.sin(ang) * r;
             if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
@@ -488,7 +565,7 @@
         }
       }
 
-      /***** Bullet Class *****/
+      // Bullet class with sparkling UFO bullets
       class Bullet {
         constructor(x, y, angle) {
           this.x = x;
@@ -509,14 +586,32 @@
           this.life--;
         }
         draw() {
-          ctx.fillStyle = this.color;
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.fill();
+          if (this.from === "ufo") {
+            // Larger, sparkling "photon torpedo"
+            ctx.save();
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#ff0";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(this.x - 4, this.y);
+            ctx.lineTo(this.x + 4, this.y);
+            ctx.moveTo(this.x, this.y - 4);
+            ctx.lineTo(this.x, this.y + 4);
+            ctx.stroke();
+            ctx.restore();
+          } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
-      /***** UFO Class *****/
+      // UFO class
       class UFO {
         constructor() {
           this.fromLeft = Math.random() < 0.5;
@@ -529,7 +624,7 @@
         update() {
           this.fromLeft ? this.x += this.speed : this.x -= this.speed;
           this.shootCooldown--;
-          if(this.shootCooldown <= 0 && ship) {
+          if (this.shootCooldown <= 0 && ship) {
             const angle = Math.atan2(ship.y - this.y, ship.x - this.x);
             const bullet = new Bullet(this.x, this.y, angle);
             bullet.from = "ufo";
@@ -538,7 +633,7 @@
             osc.playSound(config.sounds.ufoShoot.frequency, config.sounds.ufoShoot.type, config.sounds.ufoShoot.duration, config.sounds.ufoShoot.volume);
             this.shootCooldown = config.ufo.shootCooldown;
           }
-          if(this.x < -100 || this.x > canvas.width + 100) ufo = null;
+          if (this.x < -100 || this.x > canvas.width + 100) ufo = null;
         }
         draw() {
           ctx.save();
@@ -557,7 +652,7 @@
       let ufo = null;
       let ufoSpawnTimer = 300;
 
-      /***** Create Initial Asteroids *****/
+      //––––– COLLISION & ASTEROID CREATION –––––//
       function createAsteroids(count) {
         asteroids = [];
         for (let i = 0; i < count; i++) {
@@ -565,12 +660,10 @@
           do {
             x = Math.random() * canvas.width;
             y = Math.random() * canvas.height;
-          } while (Math.hypot(x - canvas.width/2, y - canvas.height/2) < 100);
+          } while (Math.hypot(x - canvas.width / 2, y - canvas.height / 2) < 100);
           asteroids.push(new Asteroid(x, y, config.asteroid.defaultRadius));
         }
       }
-
-      /***** Collision Detection *****/
       function isColliding(a, b) {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
@@ -578,7 +671,7 @@
       }
 
       /***** Handle Shooting (Space Key) *****/
-      document.addEventListener("keydown", (e) => {
+      document.addEventListener("keydown", e => {
         if (e.key === " " && gameState === "playing") {
           bullets.push(new Bullet(
             ship.x + Math.cos(ship.angle) * 20,
@@ -600,13 +693,14 @@
           });
           if (!ufo) {
             ufoSpawnTimer--;
-            if(ufoSpawnTimer <= 0) {
+            if (ufoSpawnTimer <= 0) {
               ufo = new UFO();
               ufoSpawnTimer = Math.floor(Math.random() * 300) + 300;
             }
           } else {
             ufo.update();
           }
+          // Bullet-Asteroid collisions
           bullets.forEach((b, bIdx) => {
             asteroids.forEach((a, aIdx) => {
               if (isColliding(b, a)) {
@@ -621,7 +715,16 @@
                     config.particles.explosion.size
                   ));
                 }
-                effects.push(new Ring(a.x, a.y, 0, a.radius * 3, config.particles.explosion.life, config.particles.explosion.color, 2));
+                // Schedule 3 asteroid explosions with delay and random offsets.
+                for (let j = 0; j < 3; j++) {
+                  setTimeout(() => {
+                    config.explosions.asteroid.forEach(exp => {
+                      const offsetX = a.x + (Math.random() - 0.5) * 20;
+                      const offsetY = a.y + (Math.random() - 0.5) * 20;
+                      effects.push(new Ring(offsetX, offsetY, 0, a.radius * exp.finalRadiusFactor, exp.life, exp.color, exp.lineWidth));
+                    });
+                  }, 100 + Math.random() * 200);
+                }
                 bullets.splice(bIdx, 1);
                 asteroids.splice(aIdx, 1);
                 osc.playSound(config.sounds.asteroidExplosion.frequency, config.sounds.asteroidExplosion.type, config.sounds.asteroidExplosion.duration, config.sounds.asteroidExplosion.volume);
@@ -631,33 +734,26 @@
                 }
               }
             });
-            if(b.from === "player" && ufo) {
+            if (b.from === "player" && ufo) {
               const dx = b.x - ufo.x, dy = b.y - ufo.y;
-              if(Math.hypot(dx, dy) < ufo.radius + b.radius) {
+              if (Math.hypot(dx, dy) < ufo.radius + b.radius) {
                 score += config.ufo.scoreValue;
-                for (let i = 0; i < config.particles.explosion.count; i++) {
-                  particles.push(new Particle(
-                    ufo.x, ufo.y,
-                    Math.random() * Math.PI * 2,
-                    config.particles.explosion.speed * (Math.random() + 0.5),
-                    config.particles.explosion.life,
-                    config.particles.explosion.color,
-                    config.particles.explosion.size
-                  ));
-                }
-                effects.push(new Ring(ufo.x, ufo.y, 0, ufo.radius * 3, config.particles.explosion.life, config.particles.explosion.color, 2));
+                config.explosions.asteroid.forEach(exp => {
+                  effects.push(new Ring(ufo.x, ufo.y, 0, ufo.radius * exp.finalRadiusFactor, exp.life, exp.color, exp.lineWidth));
+                });
                 bullets.splice(bIdx, 1);
                 ufo = null;
                 osc.playSound(config.sounds.ufoExplosion.frequency, config.sounds.ufoExplosion.type, config.sounds.ufoExplosion.duration, config.sounds.ufoExplosion.volume);
               }
             }
-            if(b.from === "ufo" && ship) {
+            if (b.from === "ufo" && ship) {
               const dx = b.x - ship.x, dy = b.y - ship.y;
-              if(Math.hypot(dx, dy) < ship.radius + b.radius) {
+              if (Math.hypot(dx, dy) < ship.radius + b.radius) {
                 gameOver();
               }
             }
           });
+          // Asteroid-Ship collisions
           asteroids.forEach(a => {
             if (isColliding(a, ship)) {
               gameOver();
@@ -675,7 +771,6 @@
         });
       }
 
-      /***** Draw Score *****/
       function drawScore() {
         ctx.save();
         ctx.font = config.score.font;
@@ -685,7 +780,6 @@
         ctx.restore();
       }
 
-      /***** Draw Function *****/
       function draw() {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -695,12 +789,12 @@
         if (gameState === "playing") {
           ctx.save();
           ctx.shadowBlur = 10;
-          ctx.shadowColor = "#0f0";
+          ctx.shadowColor = "#fff";
           ship.draw();
           ctx.restore();
           ctx.save();
           ctx.shadowBlur = 8;
-          ctx.shadowColor = "#0f0";
+          ctx.shadowColor = "#fff";
           asteroids.forEach(a => a.draw());
           ctx.restore();
           ctx.save();
@@ -710,7 +804,7 @@
             b.draw();
           });
           ctx.restore();
-          if(ufo) {
+          if (ufo) {
             ctx.save();
             ctx.shadowBlur = 15;
             ctx.shadowColor = "#f0f";
@@ -727,16 +821,15 @@
         ctx.restore();
       }
 
-      /***** Main Game Loop *****/
+      //––––– GAME LOOP –––––//
       function gameLoop() {
         update();
         draw();
         requestAnimationFrame(gameLoop);
       }
 
-      /***** Game Start with Beam-In Effect *****/
+      //––––– GAME START & OVER –––––//
       function startGame() {
-        // Clear previous game objects
         bullets = [];
         particles = [];
         effects = [];
@@ -745,70 +838,66 @@
         select("startScreen").style.display = "none";
         select("gameOverScreen").style.display = "none";
         select("creditsScreen").style.display = "none";
-        
-        // Create asteroids immediately
         createAsteroids(config.asteroid.initialCount);
-        
-        // Start background sound loop
         osc.startSustainedSound("background", config.sounds.background.frequency, config.sounds.background.type, config.sounds.background.volume);
-        
-        // Use a beam-in effect: create a stream of blue rings.
+        // Beam-in effect: stream of thick blue rings.
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const diag = Math.hypot(canvas.width, canvas.height);
-        const beamCount = 10; // Number of rings to spawn.
+        const beamCount = 10;
         for (let i = 0; i < beamCount; i++) {
           setTimeout(() => {
             effects.push(new Ring(centerX, centerY, diag, 0, config.particles.shipExplosion.ringLife, config.particles.shipExplosion.color, config.particles.shipExplosion.lineWidth, true));
           }, i * 50);
         }
-        
-        // Set game state to "starting" until beam effect completes.
         gameState = "starting";
         setTimeout(() => {
           ship = new Ship();
           gameState = "playing";
-        }, config.particles.shipExplosion.ringLife * 16);
+        }, config.beamDelay);
       }
 
-      /***** Game Over Routine *****/
       function gameOver() {
         if (gameState !== "playing") return;
         gameState = "gameover";
-        // Stop background sound.
         osc.stopSustainedSound("background");
+        // Ship explosion particles with random offsets and slower effect.
         for (let i = 0; i < config.particles.shipExplosion.count; i++) {
           particles.push(new Particle(
-            ship.x, ship.y,
+            ship.x + (Math.random() - 0.5) * 10,
+            ship.y + (Math.random() - 0.5) * 10,
             Math.random() * Math.PI * 2,
             config.particles.explosion.speed * (Math.random() + 0.5),
-            config.particles.explosion.life,
+            config.particles.explosion.life * 1.5,
             config.particles.explosion.color,
             config.particles.explosion.size
           ));
         }
-        effects.push(new Ring(
-          ship.x, ship.y,
-          0, Math.hypot(canvas.width, canvas.height),
-          config.particles.shipExplosion.ringLife,
-          config.particles.shipExplosion.color,
-          config.particles.shipExplosion.lineWidth
-        ));
+        // Ship explosion effect with random offset.
+        config.explosions.ship.forEach(exp => {
+          const offsetX = ship.x + (Math.random() - 0.5) * 20;
+          const offsetY = ship.y + (Math.random() - 0.5) * 20;
+          effects.push(new Ring(offsetX, offsetY, 0, Math.hypot(canvas.width, canvas.height) * exp.finalRadiusFactor / 3, exp.life * 1.5, exp.color, exp.lineWidth));
+        });
+        // Three extra asteroid explosions from the ship's location.
+        for (let j = 0; j < 3; j++) {
+          config.explosions.asteroid.forEach(exp => {
+            setTimeout(() => {
+              const offsetX = ship.x + (Math.random() - 0.5) * 30;
+              const offsetY = ship.y + (Math.random() - 0.5) * 30;
+              effects.push(new Ring(offsetX, offsetY, 0, (canvas.width + canvas.height) / 4 * exp.finalRadiusFactor, exp.life * 1.5, exp.color, exp.lineWidth));
+            }, 100 + Math.random() * 200);
+          });
+        }
         osc.playSound(config.sounds.shipExplosion.frequency, config.sounds.shipExplosion.type, config.sounds.shipExplosion.duration, config.sounds.shipExplosion.volume);
         setTimeout(() => {
           select("gameOverScreen").style.display = "flex";
         }, 500);
       }
 
-      /***** Button Event Listeners Using on() *****/
-      on("startBtn", "click", () => {
-        startGame();
-        initStars();
-      });
-      on("restartBtn", "click", () => {
-        startGame();
-        initStars();
-      });
+      //––––– EVENT LISTENERS –––––//
+      on("startBtn", "click", () => { startGame(); initStars(); });
+      on("restartBtn", "click", () => { startGame(); initStars(); });
       on("creditsBtn", "click", () => {
         select("gameOverScreen").style.display = "none";
         select("creditsScreen").style.display = "flex";
@@ -818,7 +907,7 @@
         select("startScreen").style.display = "flex";
       });
 
-      /***** Start the Game Loop *****/
+      //––––– START GAME LOOP –––––//
       requestAnimationFrame(gameLoop);
     })();
   </script>
