@@ -211,25 +211,36 @@
       cursor: default;
     }
     #dock {
-      position: fixed;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.8);
-      padding: 5px;
-      border-top: 1px solid #aaa;
-      display: flex;
-      gap: 5px;
-      z-index: 1000;
-    }
-    .dock-icon {
-      padding: 5px;
-      background: #ddd;
-      border: 1px solid #aaa;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    }
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0,0,0,0.2);
+    border-radius: 12px 12px 0 0;
+    padding: 5px 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 1000;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+  }
+  .dock-icon {
+    width: 48px;
+    height: 48px;
+    background: #ddd;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    /* Optionally, add a slight border or glow */
+    border: 1px solid rgba(0,0,0,0.2);
+  }
+  .dock-icon:hover {
+    transform: scale(1.2);
+  }
     #finder-context-menu {
       position: absolute;
       display: none;
@@ -488,147 +499,118 @@
         di.addEventListener("click", function(){ restoreWindow(w, di); });
         d.appendChild(di);
       }
-      function restoreWindow(w, di){
-        w.style.display = "block";
-        w.style.zIndex = zIndexCounter++;
-        di.remove();
-      }
 
         // Global array to track open windows.
         var openWindows = [];
 
-    // Updated OS.createWindow to register windows and add a Dock button.
-     function createWindow(title, contentHTML) {
-  var w = document.createElement("div");
-  w.classList.add("window");
-  w.style.top = "100px";
-  w.style.left = "100px";
-  w.style.width = "400px";
-  w.style.height = "300px";
-  w.style.zIndex = zIndexCounter++;
-  w.addEventListener("mousedown", function(){ 
-    activeWindow = w; 
-    w.style.zIndex = zIndexCounter++; 
-  });
-  
-  var h = document.createElement("div");
-  h.classList.add("window-header");
-  
-  // Controls container (placed on left)
-  var ctr = document.createElement("div");
-  ctr.classList.add("window-controls");
-  
-  // --- Dock button ---
-  var dockBtn = document.createElement("span");
-  dockBtn.classList.add("dock");
-  dockBtn.title = "Dock";
-  dockBtn.style.background = "blue"; // style as desired
-  dockBtn.style.width = "16px";
-  dockBtn.style.height = "16px";
-  dockBtn.style.borderRadius = "50%";
-  dockBtn.style.marginRight = "5px";
-  dockBtn.addEventListener("click", function(e) {
-    e.stopPropagation();
-    if (!w.docked) {
-      w.docked = true;
-      addToDock(w);
-    }
-  });
-  ctr.appendChild(dockBtn);
-  
-  // --- Close button ---
-  var cl = document.createElement("span");
-  cl.classList.add("close");
-  cl.title = "Close";
-  cl.addEventListener("click", function(e){ 
-    e.stopPropagation(); 
-    animateClose(w);
-  });
-  ctr.appendChild(cl);
-  
-  // --- Minimize button ---
-  var mn = document.createElement("span");
-  mn.classList.add("minimize");
-  mn.title = "Minimize";
-  mn.addEventListener("click", function(e){ 
-    e.stopPropagation(); 
-    minimizeWindow(w);
-  });
-  ctr.appendChild(mn);
-  
-  // --- Maximize button ---
-  var mx = document.createElement("span");
-  mx.classList.add("maximize");
-  mx.title = "Maximize/Restore";
-  mx.addEventListener("click", function(e){
-    e.stopPropagation();
-    if(w.dataset.maximized === "true"){
-      var orig = JSON.parse(w.dataset.originalRect);
-      w.style.top = orig.top;
-      w.style.left = orig.left;
-      w.style.width = orig.width;
-      w.style.height = orig.height;
-      w.dataset.maximized = "false";
-    } else {
-      w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
-      w.style.top = "24px";
-      w.style.left = "0px";
-      w.style.width = "100%";
-      w.style.height = "calc(100% - 24px)";
-      w.dataset.maximized = "true";
-    }
-  });
-  ctr.appendChild(mx);
-  
-  h.appendChild(ctr);
-  var ts = document.createElement("span");
-  ts.classList.add("title");
-  ts.textContent = title;
-  h.appendChild(ts);
-  w.appendChild(h);
-  
-  var cd = document.createElement("div");
-  cd.classList.add("window-content");
-  cd.style.position = "relative";
-  cd.innerHTML = contentHTML;
-  w.appendChild(cd);
-  
-  h.addEventListener("mousedown", function(e){ dragElement(w, e); });
-  var rh = document.createElement("div");
-  rh.classList.add("resize-handle");
-  w.appendChild(rh);
-  rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
-  
-  $("#window-container").appendChild(w);
-  setTimeout(function() { w.classList.add("show"); }, 10);
-  
-  // Add the window to our registry.
-  openWindows.push(w);
-  
-  return w;
-};
+    // Global array to track open windows.
+  var openWindows = [];
 
-// Animate window close and remove from openWindows and dock.
-function animateClose(w) {
-  w.classList.remove("show");
-  w.classList.add("closing");
-  setTimeout(function(){
-    w.remove();
-    openWindows = openWindows.filter(function(win){ return win !== w; });
-    removeFromDock(w);
-  }, 300);
-}
+  // Updated OS.createWindow: All windows are automatically added to the dock.
+  function createWindow(title, contentHTML) {
+    var w = document.createElement("div");
+    w.classList.add("window");
+    w.style.top = "100px";
+    w.style.left = "100px";
+    w.style.width = "400px";
+    w.style.height = "300px";
+    w.style.zIndex = zIndexCounter++;
+    w.addEventListener("mousedown", function(){ 
+      activeWindow = w; 
+      w.style.zIndex = zIndexCounter++; 
+    });
+    var h = document.createElement("div");
+    h.classList.add("window-header");
+    // Removed the user-controlled dock button—apps are auto-docked now.
+    var ctr = document.createElement("div");
+    ctr.classList.add("window-controls");
+    var cl = document.createElement("span");
+    cl.classList.add("close");
+    cl.title = "Close";
+    cl.addEventListener("click", function(e){ 
+      e.stopPropagation(); 
+      animateClose(w);
+    });
+    ctr.appendChild(cl);
+    var mn = document.createElement("span");
+    mn.classList.add("minimize");
+    mn.title = "Minimize";
+    mn.addEventListener("click", function(e){ 
+      e.stopPropagation(); 
+      minimizeWindow(w);
+    });
+    ctr.appendChild(mn);
+    var mx = document.createElement("span");
+    mx.classList.add("maximize");
+    mx.title = "Maximize/Restore";
+    mx.addEventListener("click", function(e){
+      e.stopPropagation();
+      if(w.dataset.maximized === "true"){
+        var orig = JSON.parse(w.dataset.originalRect);
+        w.style.top = orig.top;
+        w.style.left = orig.left;
+        w.style.width = orig.width;
+        w.style.height = orig.height;
+        w.dataset.maximized = "false";
+      } else {
+        w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
+        w.style.top = "24px";
+        w.style.left = "0px";
+        w.style.width = "100%";
+        w.style.height = "calc(100% - 24px)";
+        w.dataset.maximized = "true";
+      }
+    });
+    ctr.appendChild(mx);
+    h.appendChild(ctr);
+    var ts = document.createElement("span");
+    ts.classList.add("title");
+    ts.textContent = title;
+    h.appendChild(ts);
+    w.appendChild(h);
+    var cd = document.createElement("div");
+    cd.classList.add("window-content");
+    cd.style.position = "relative";
+    cd.innerHTML = contentHTML;
+    w.appendChild(cd);
+    h.addEventListener("mousedown", function(e){ dragElement(w, e); });
+    var rh = document.createElement("div");
+    rh.classList.add("resize-handle");
+    w.appendChild(rh);
+    rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
+    $("#window-container").appendChild(w);
+    setTimeout(function() { w.classList.add("show"); }, 10);
+    openWindows.push(w);
+    // Automatically add this window to the dock.
+    addToDock(w);
+    return w;
+  };
 
-// Dock support: add a dock icon.
-function addToDock(w) {
+  // Animate window close and remove its dock icon.
+  function animateClose(w) {
+    w.classList.remove("show");
+    w.classList.add("closing");
+    setTimeout(function(){
+      w.remove();
+      openWindows = openWindows.filter(function(win){ return win !== w; });
+      removeFromDock(w);
+    }, 300); // Adjust duration to match CSS transition
+  }
+
+  // Dock functions: add or remove a window's dock icon.
+  function addToDock(w) {
     var dock = $("#dock");
     if (!w.dockIcon) {
       var di = document.createElement("div");
       di.classList.add("dock-icon");
-      di.textContent = w.querySelector(".title").textContent;
+      // Use the window's title (or later you could set an image) for the dock icon.
+      di.innerHTML = w.querySelector(".title").textContent;
       di.addEventListener("click", function(){
         if (w.style.display === "none") {
           restoreWindow(w, di);
+        } else {
+          w.style.display = "block";
+          w.style.zIndex = zIndexCounter++;
         }
       });
       dock.appendChild(di);
@@ -640,6 +622,13 @@ function addToDock(w) {
       w.dockIcon.remove();
       delete w.dockIcon;
     }
+  }
+
+  // Restore a minimized window.
+  function restoreWindow(w, di) {
+    w.style.display = "block";
+    w.style.zIndex = zIndexCounter++;
+    di.remove();
   }
 
 
@@ -840,7 +829,7 @@ function addToDock(w) {
         }
       };
 
-// --- Process Manager App ---
+// Example: Process Manager App (accessible via the Apple menu)
 OS.processManager = function() {
     var contentHTML = '<div id="process-manager-content" style="padding: 10px;">' +
                       '<h3>Process Manager</h3>' +
@@ -870,6 +859,24 @@ OS.processManager = function() {
     });
     return w;
   };
+
+  // Modify the Apple menu to include a "Process Manager" option.
+  $("#apple-dropdown").addEventListener("click", function(e) {
+    var action = e.target.getAttribute("data-action");
+    if (action) {
+      if (action === "about") {
+        alert("Retro Mac OS 9\nVersion 1.0");
+      } else if (action === "system") {
+        OS.openCodeEditor();
+      } else if (action === "process-manager") {
+        OS.processManager();
+      } else if (action === "restart") {
+        alert("Restarting... (not really)");
+      } else if (action === "shutdown") {
+        alert("Shutting down... (not really)");
+      }
+    }
+  });
 
   // --- Modify Apple Menu Dropdown to add Process Manager option ---
   $("#apple-dropdown").addEventListener("click", function(e) {
