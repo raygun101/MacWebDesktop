@@ -738,30 +738,29 @@
         }
       };
 
-  // Updated OS.createHTMLWindow:
+  // Updated OS.createHTMLWindow with robust favicon extraction.
   OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
-    // Create a window that initially contains a loading indicator.
+    // Create a window with a loading indicator.
     var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
     var w = OS.createWindow(title, loadingHTML);
     w.style.width = desiredWidth + 'px';
     w.style.height = desiredHeight + 'px';
 
-    // Create the iframe dynamically.
+    // Create the iframe immediately and append it hidden.
     var iframe = document.createElement("iframe");
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.style.border = "none";
-    iframe.style.opacity = "0";  // Initially hidden
+    iframe.style.opacity = "0";  // Keep it hidden until loaded.
     iframe.src = url;
-
-    // Append the iframe immediately so it becomes part of the DOM.
+    
     var contentDiv = w.querySelector(".window-content");
     contentDiv.appendChild(iframe);
 
     // When the iframe loads...
     iframe.onload = function() {
       try {
-        // Inject a simple API so that the iframe's code can control the window.
+        // Inject desktopCore into the iframe.
         iframe.contentWindow.desktopCore = {
           closeApp: function() {
             animateClose(w);
@@ -771,6 +770,11 @@
       } catch (err) {
         console.error("desktopCore injection failed:", err);
       }
+      // Attempt to extract the favicon using iframe.src as base.
+      var iconUrl = getFaviconFromIframe(iframe);
+      if (iconUrl) {
+        setWindowIcon(w, iconUrl);
+      }
       // Remove the loading indicator.
       var loadingDiv = w.querySelector("#loading-indicator");
       if (loadingDiv) {
@@ -779,11 +783,11 @@
       // Fade in the iframe.
       iframe.style.transition = "opacity 0.3s ease";
       iframe.style.opacity = "1";
-      // Also, add the "show" class to fade in the window (if not already visible).
+      // Add the "show" class to the window.
       w.classList.add("show");
     };
 
-    // Fallback: If onload doesn't fire within 5 seconds, remove the loading indicator and show the iframe.
+    // Fallback: If onload never fires within 5 seconds, force the iframe to show.
     setTimeout(function() {
       if (iframe.style.opacity !== "1") {
         var loadingDiv = w.querySelector("#loading-indicator");
@@ -794,6 +798,13 @@
       }
     }, 5000);
 
+    iframe.onerror = function() {
+      var contentDiv = w.querySelector(".window-content");
+      contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
+                             '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
+                             '<p>Page failed to load</p></div>';
+    };
+
     return w;
   };
 
@@ -801,29 +812,41 @@
     try {
       var doc = iframe.contentDocument || iframe.contentWindow.document;
       var icon = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
-      return icon ? icon.href : null;
+      if (icon) {
+        var href = icon.getAttribute("href");
+        // Use iframe.src as the base URL.
+        try {
+          return new URL(href, iframe.src).href;
+        } catch (e) {
+          // If URL construction fails (e.g. for blob or local files), just return href.
+          return href;
+        }
+      }
+      return null;
     } catch (err) {
       console.warn("Could not access iframe document:", err);
       return null;
     }
   }
 
+  // Function to set the window icon (an SVG or image)
   function setWindowIcon(windowElement, iconUrl) {
-    var titleBar = windowElement.querySelector(".window-title-bar");
-    var existingIcon = titleBar.querySelector(".window-icon");
+    // Assume the title bar is the .window-header element.
+    var header = windowElement.querySelector(".window-header");
+    if (!header) return;
     
-    if (!existingIcon) {
-      var icon = document.createElement("img");
-      icon.className = "window-icon";
-      icon.style.width = "16px";
-      icon.style.height = "16px";
-      icon.style.marginRight = "5px";
-      titleBar.insertBefore(icon, titleBar.firstChild);
+    // If an icon element already exists, update it; otherwise, create one.
+    var iconElem = header.querySelector(".window-icon");
+    if (!iconElem) {
+      iconElem = document.createElement("img");
+      iconElem.className = "window-icon";
+      iconElem.style.width = "16px";
+      iconElem.style.height = "16px";
+      iconElem.style.marginRight = "5px";
+      header.insertBefore(iconElem, header.firstChild);
     }
-
-    titleBar.querySelector(".window-icon").src = iconUrl;
+    iconElem.src = iconUrl;
   }
-
 
       // Code Editor app for editing system configuration (with theme change options added in System Preferences).
       OS.openCodeEditor = function() {
