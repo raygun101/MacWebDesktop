@@ -736,55 +736,43 @@
         }
       };
 
-  // --- Updated OS.createHTMLWindow ---
+      
+  // --- Updated OS.createHTMLWindow with progress indicator & injection ---
   OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
-    // Create window with a loading indicator.
     var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
     var w = OS.createWindow(title, loadingHTML);
     w.style.width = desiredWidth + 'px';
     w.style.height = desiredHeight + 'px';
 
-    // Create the iframe and append it immediately (hidden via opacity 0).
     var iframe = document.createElement("iframe");
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.style.border = "none";
-    iframe.style.opacity = "0";
+    iframe.style.opacity = "0"; // Hidden until loaded
     iframe.src = url;
+
     var contentDiv = w.querySelector(".window-content");
     contentDiv.appendChild(iframe);
 
-    // When the iframe loads, inject the desktopCore and show it.
     iframe.onload = function() {
       try {
-        // Inject desktopCore into the iframe.
         iframe.contentWindow.desktopCore = {
           closeApp: function() {
             animateClose(w);
           }
-          // More methods can be added as needed.
+          // More methods as needed.
         };
       } catch (err) {
         console.error("desktopCore injection failed:", err);
       }
-      // Attempt to extract the favicon using iframe.src as base.
-      var iconUrl = getFaviconFromIframe(iframe);
-      if (iconUrl) {
-        setWindowIcon(w, iconUrl);
-      }
-      // Remove the loading indicator.
       var loadingDiv = w.querySelector("#loading-indicator");
-      if (loadingDiv) {
-        loadingDiv.remove();
-      }
+      if (loadingDiv) loadingDiv.remove();
       // Fade in the iframe.
       iframe.style.transition = "opacity 0.3s ease";
       iframe.style.opacity = "1";
-      // Add the "show" class to the window.
       w.classList.add("show");
     };
 
-    // Fallback: If onload never fires within 5 seconds, force the iframe to show.
     setTimeout(function() {
       if (iframe.style.opacity !== "1") {
         var loadingDiv = w.querySelector("#loading-indicator");
@@ -826,7 +814,6 @@
     }
   }
 
-  // --- New Helper: Extract page details (title and favicon) ---
   function getPageDetails(url) {
     return fetch(url)
       .then(function(response) { return response.text(); })
@@ -848,7 +835,7 @@
          }
          return { title: title, iconUrl: iconUrl };
       });
-  }
+    }
 
   // Function to set the window icon (an SVG or image)
   function setWindowIcon(windowElement, iconUrl) {
