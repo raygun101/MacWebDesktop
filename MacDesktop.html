@@ -408,49 +408,47 @@
           newFileCounter = 1,
           openFinderWindows = [];
 
-      // -----------------------------
-      // External link drop support:
-      function setupExternalLinkDrop(container) {
-        container.addEventListener("dragover", function(e) {
-          e.preventDefault();
-        });
-        container.addEventListener("drop", function(e) {
-          e.preventDefault();
-          var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
-          if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
-            var file = e.dataTransfer.files[0];
-            data = URL.createObjectURL(file);
-            console.log("Dropped file; blob URL: ", data);
-          }
-          console.log("Dropped data:", data);
-          if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
-            fetch(data).then(function(resp) {
-              return resp.text();
-            }).then(function(htmlText) {
-              var parser = new DOMParser();
-              var doc = parser.parseFromString(htmlText, "text/html");
-              var pageTitle = doc.querySelector("title") ? doc.querySelector("title").innerText : data;
-              var iconLink = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
-              var iconUrl = iconLink ? new URL(iconLink.getAttribute("href"), data).href : null;
-              addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, { 
-                type: "app", 
-                label: pageTitle, 
-                url: data,
-                icon: iconUrl,
-                action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
-              });
-            }).catch(function(err) {
-              console.error("Failed to fetch URL: ", err);
-              addFinderIcon(container, "app", data, e.offsetX, e.offsetY, { 
-                type: "app", 
-                label: data, 
-                url: data, 
-                action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
-              });
-            });
-          }
-        });
+      // --- Refactored Drop Handler using new features ---
+  function setupExternalLinkDrop(container) {
+    container.addEventListener("dragover", function(e) {
+      e.preventDefault();
+    });
+    container.addEventListener("drop", function(e) {
+      e.preventDefault();
+      var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+      if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
+         var file = e.dataTransfer.files[0];
+         data = URL.createObjectURL(file);
+         console.log("Dropped file; blob URL:", data);
       }
+      console.log("Dropped data:", data);
+      if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
+         // Attempt to fetch page details: title and icon.
+         getPageDetails(data)
+         .then(function(details) {
+             var pageTitle = details.title;
+             var iconUrl = details.iconUrl;
+             addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, { 
+                 type: "app",
+                 label: pageTitle,
+                 url: data,
+                 icon: iconUrl,
+                 action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
+             });
+         })
+         .catch(function(err) {
+             console.error("Failed to fetch page details:", err);
+             // Fallback: use dropped URL as title and default icon.
+             addFinderIcon(container, "app", data, e.offsetX, e.offsetY, {
+                 type: "app",
+                 label: data,
+                 url: data,
+                 action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
+             });
+         });
+      }
+    });
+  }
 
       // -----------------------------
       // Core window and drag/drop functions
@@ -738,26 +736,25 @@
         }
       };
 
-  // Updated OS.createHTMLWindow with robust favicon extraction.
+  // --- Updated OS.createHTMLWindow ---
   OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
-    // Create a window with a loading indicator.
+    // Create window with a loading indicator.
     var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
     var w = OS.createWindow(title, loadingHTML);
     w.style.width = desiredWidth + 'px';
     w.style.height = desiredHeight + 'px';
 
-    // Create the iframe immediately and append it hidden.
+    // Create the iframe and append it immediately (hidden via opacity 0).
     var iframe = document.createElement("iframe");
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.style.border = "none";
-    iframe.style.opacity = "0";  // Keep it hidden until loaded.
+    iframe.style.opacity = "0";
     iframe.src = url;
-    
     var contentDiv = w.querySelector(".window-content");
     contentDiv.appendChild(iframe);
 
-    // When the iframe loads...
+    // When the iframe loads, inject the desktopCore and show it.
     iframe.onload = function() {
       try {
         // Inject desktopCore into the iframe.
@@ -827,6 +824,30 @@
       console.warn("Could not access iframe document:", err);
       return null;
     }
+  }
+
+  // --- New Helper: Extract page details (title and favicon) ---
+  function getPageDetails(url) {
+    return fetch(url)
+      .then(function(response) { return response.text(); })
+      .then(function(htmlText) {
+         var parser = new DOMParser();
+         var doc = parser.parseFromString(htmlText, "text/html");
+         var titleEl = doc.querySelector("title");
+         var title = titleEl ? titleEl.innerText : url;
+         var iconEl = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
+         var iconUrl = null;
+         if (iconEl) {
+           var href = iconEl.getAttribute("href");
+           try {
+             iconUrl = new URL(href, url).href;
+           } catch (e) {
+             // Fallback if URL construction fails (for blob/local file URLs)
+             iconUrl = href;
+           }
+         }
+         return { title: title, iconUrl: iconUrl };
+      });
   }
 
   // Function to set the window icon (an SVG or image)
