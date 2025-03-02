@@ -68,7 +68,7 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 24px;
+      height:36px;
       background: var(--menubar-bg);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--menubar-border);
@@ -86,12 +86,20 @@
       padding: 2px 4px;
       display: flex;
       align-items: center;
+      background: rgba(255,255,255,0.1);
+    }
+    .menu-item .separator {
+      width: 100%;
+      height: 2px;
+      background: var(--menubar-border);
+      margin: 2px 0;
+      padding: 0;
     }
     .menu-item svg { margin-right: 4px; }
     /* Dropdown menus with transitions and rounded corners */
     .dropdown {
       position: absolute;
-      top: 24px;
+      top: 10px;
       left: 0;
       background: var(--dropdown-bg);
       backdrop-filter: blur(10px);
@@ -210,37 +218,38 @@
       font-size: 12px;
       cursor: default;
     }
+    /* Updated Dock Bar Styling (mimics macOS dock) */
     #dock {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255,255,255,0.5);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(0,0,0,0.2);
-    border-radius: 12px 12px 0 0;
-    padding: 5px 10px;
-    display: flex;
-    gap: 10px;
-    z-index: 1000;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
-  }
-  .dock-icon {
-    width: 48px;
-    height: 48px;
-    background: #ddd;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    /* Optionally, add a slight border or glow */
-    border: 1px solid rgba(0,0,0,0.2);
-  }
-  .dock-icon:hover {
-    transform: scale(1.2);
-  }
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(0,0,0,0.2);
+      border-radius: 12px 12px 0 0;
+      padding: 5px 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+    }
+    .dock-icon {
+      width: 48px;
+      height: 48px;
+      background: #ddd;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      /* Optionally, add a slight border or glow */
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+    .dock-icon:hover {
+      transform: scale(1.2);
+    }
     #finder-context-menu {
       position: absolute;
       display: none;
@@ -347,6 +356,9 @@
         <ul class="dropdown" id="apple-dropdown">
           <li data-action="about">About This Mac</li>
           <li data-action="system">System Preferences...</li>
+          <li class="separator"></li>
+          <li data-action="process-manager">Process Manager...</li>
+          <li class="separator"></li>
           <li data-action="restart">Restart...</li>
           <li data-action="shutdown">Shut Down...</li>
         </ul>
@@ -859,42 +871,6 @@ OS.processManager = function() {
     });
     return w;
   };
-
-  // Modify the Apple menu to include a "Process Manager" option.
-  $("#apple-dropdown").addEventListener("click", function(e) {
-    var action = e.target.getAttribute("data-action");
-    if (action) {
-      if (action === "about") {
-        alert("Retro Mac OS 9\nVersion 1.0");
-      } else if (action === "system") {
-        OS.openCodeEditor();
-      } else if (action === "process-manager") {
-        OS.processManager();
-      } else if (action === "restart") {
-        alert("Restarting... (not really)");
-      } else if (action === "shutdown") {
-        alert("Shutting down... (not really)");
-      }
-    }
-  });
-
-  // --- Modify Apple Menu Dropdown to add Process Manager option ---
-  $("#apple-dropdown").addEventListener("click", function(e) {
-    var action = e.target.getAttribute("data-action");
-    if (action) {
-      if (action === "about") {
-        alert("Retro Mac OS 9\nVersion 1.0");
-      } else if (action === "system") {
-        OS.openCodeEditor();
-      } else if (action === "process-manager") {
-        OS.processManager();
-      } else if (action === "restart") {
-        alert("Restarting... (not really)");
-      } else if (action === "shutdown") {
-        alert("Shutting down... (not really)");
-      }
-    }
-  });
         
   // --- Updated OS.createHTMLWindow with progress indicator & injection ---
   OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
@@ -1185,23 +1161,27 @@ OS.processManager = function() {
           });
         }, 200);
       });
-      
-      // Top Menu Bar click actions (for menu item actions)
-      $("#apple-dropdown").addEventListener("click", function(e) {
-        var action = e.target.getAttribute("data-action");
-        if (action) {
-          if (action === "about") {
-            alert("Retro Mac OS 9\nVersion 1.0");
-          } else if (action === "system") {
-            OS.openCodeEditor();
-          } else if (action === "restart") {
-            alert("Restarting... (not really)");
-          } else if (action === "shutdown") {
-            alert("Shutting down... (not really)");
-          }
-        }
-      });
-      $("#file-dropdown").addEventListener("click", function(e) {
+
+
+  // Top Menu Bar click actions (for menu item actions)
+  $("#apple-dropdown").addEventListener("click", function(e) {
+    var action = e.target.getAttribute("data-action");
+    if (action) {
+      if (action === "about") {
+        alert("Retro Mac OS 9\nVersion 1.0");
+      } else if (action === "system") {
+        OS.openCodeEditor();
+      } else if (action === "process-manager") {
+        OS.processManager();
+      } else if (action === "restart") {
+        alert("Restarting... (not really)");
+      } else if (action === "shutdown") {
+        alert("Shutting down... (not really)");
+      }
+    }
+  });
+
+  $("#file-dropdown").addEventListener("click", function(e) {
         var action = e.target.getAttribute("data-action");
         if (action) {
           if (action === "new-finder") {
