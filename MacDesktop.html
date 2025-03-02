@@ -493,89 +493,157 @@
         w.style.zIndex = zIndexCounter++;
         di.remove();
       }
-      // Animate window close: add "closing" class then remove after transition ends.
-      function animateClose(w) {
-        w.classList.remove("show");
-        w.classList.add("closing");
-        setTimeout(function(){
-          w.remove();
-        }, 300); // match transition duration
-      }
-      function createWindow(t, html){
-        var w = document.createElement("div");
-        w.classList.add("window");
-        w.style.top = "100px";
-        w.style.left = "100px";
-        w.style.width = "400px";
-        w.style.height = "300px";
-        w.style.zIndex = zIndexCounter++;
-        w.addEventListener("mousedown", function(){ 
-          activeWindow = w; 
-          w.style.zIndex = zIndexCounter++; 
-        });
-        var h = document.createElement("div");
-        h.classList.add("window-header");
-        // Place controls on the left:
-        var ctr = document.createElement("div");
-        ctr.classList.add("window-controls");
-        var cl = document.createElement("span");
-        cl.classList.add("close");
-        cl.title = "Close";
-        cl.addEventListener("click", function(e){ 
-          e.stopPropagation(); 
-          animateClose(w);
-        });
-        ctr.appendChild(cl);
-        var mn = document.createElement("span");
-        mn.classList.add("minimize");
-        mn.title = "Minimize";
-        mn.addEventListener("click", function(e){ 
-          e.stopPropagation(); 
-          minimizeWindow(w);
-        });
-        ctr.appendChild(mn);
-        var mx = document.createElement("span");
-        mx.classList.add("maximize");
-        mx.title = "Maximize/Restore";
-        mx.addEventListener("click", function(e){
-          e.stopPropagation();
-          if(w.dataset.maximized === "true"){
-            var orig = JSON.parse(w.dataset.originalRect);
-            w.style.top = orig.top;
-            w.style.left = orig.left;
-            w.style.width = orig.width;
-            w.style.height = orig.height;
-            w.dataset.maximized = "false";
-          } else {
-            w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
-            w.style.top = "24px";
-            w.style.left = "0px";
-            w.style.width = "100%";
-            w.style.height = "calc(100% - 24px)";
-            w.dataset.maximized = "true";
-          }
-        });
-        ctr.appendChild(mx);
-        h.appendChild(ctr);
-        var ts = document.createElement("span");
-        ts.classList.add("title");
-        ts.textContent = t;
-        h.appendChild(ts);
-        w.appendChild(h);
-        var cd = document.createElement("div");
-        cd.classList.add("window-content");
-        cd.style.position = "relative";
-        cd.innerHTML = html;
-        w.appendChild(cd);
-        h.addEventListener("mousedown", function(e){ dragElement(w, e); });
-        var rh = document.createElement("div");
-        rh.classList.add("resize-handle");
-        w.appendChild(rh);
-        rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
-        $("#window-container").appendChild(w);
-        setTimeout(function() { w.classList.add("show"); }, 10);
-        return w;
-      }
+
+        // Global array to track open windows.
+        var openWindows = [];
+
+    // Updated OS.createWindow to register windows and add a Dock button.
+     function createWindow(title, contentHTML) {
+  var w = document.createElement("div");
+  w.classList.add("window");
+  w.style.top = "100px";
+  w.style.left = "100px";
+  w.style.width = "400px";
+  w.style.height = "300px";
+  w.style.zIndex = zIndexCounter++;
+  w.addEventListener("mousedown", function(){ 
+    activeWindow = w; 
+    w.style.zIndex = zIndexCounter++; 
+  });
+  
+  var h = document.createElement("div");
+  h.classList.add("window-header");
+  
+  // Controls container (placed on left)
+  var ctr = document.createElement("div");
+  ctr.classList.add("window-controls");
+  
+  // --- Dock button ---
+  var dockBtn = document.createElement("span");
+  dockBtn.classList.add("dock");
+  dockBtn.title = "Dock";
+  dockBtn.style.background = "blue"; // style as desired
+  dockBtn.style.width = "16px";
+  dockBtn.style.height = "16px";
+  dockBtn.style.borderRadius = "50%";
+  dockBtn.style.marginRight = "5px";
+  dockBtn.addEventListener("click", function(e) {
+    e.stopPropagation();
+    if (!w.docked) {
+      w.docked = true;
+      addToDock(w);
+    }
+  });
+  ctr.appendChild(dockBtn);
+  
+  // --- Close button ---
+  var cl = document.createElement("span");
+  cl.classList.add("close");
+  cl.title = "Close";
+  cl.addEventListener("click", function(e){ 
+    e.stopPropagation(); 
+    animateClose(w);
+  });
+  ctr.appendChild(cl);
+  
+  // --- Minimize button ---
+  var mn = document.createElement("span");
+  mn.classList.add("minimize");
+  mn.title = "Minimize";
+  mn.addEventListener("click", function(e){ 
+    e.stopPropagation(); 
+    minimizeWindow(w);
+  });
+  ctr.appendChild(mn);
+  
+  // --- Maximize button ---
+  var mx = document.createElement("span");
+  mx.classList.add("maximize");
+  mx.title = "Maximize/Restore";
+  mx.addEventListener("click", function(e){
+    e.stopPropagation();
+    if(w.dataset.maximized === "true"){
+      var orig = JSON.parse(w.dataset.originalRect);
+      w.style.top = orig.top;
+      w.style.left = orig.left;
+      w.style.width = orig.width;
+      w.style.height = orig.height;
+      w.dataset.maximized = "false";
+    } else {
+      w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
+      w.style.top = "24px";
+      w.style.left = "0px";
+      w.style.width = "100%";
+      w.style.height = "calc(100% - 24px)";
+      w.dataset.maximized = "true";
+    }
+  });
+  ctr.appendChild(mx);
+  
+  h.appendChild(ctr);
+  var ts = document.createElement("span");
+  ts.classList.add("title");
+  ts.textContent = title;
+  h.appendChild(ts);
+  w.appendChild(h);
+  
+  var cd = document.createElement("div");
+  cd.classList.add("window-content");
+  cd.style.position = "relative";
+  cd.innerHTML = contentHTML;
+  w.appendChild(cd);
+  
+  h.addEventListener("mousedown", function(e){ dragElement(w, e); });
+  var rh = document.createElement("div");
+  rh.classList.add("resize-handle");
+  w.appendChild(rh);
+  rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
+  
+  $("#window-container").appendChild(w);
+  setTimeout(function() { w.classList.add("show"); }, 10);
+  
+  // Add the window to our registry.
+  openWindows.push(w);
+  
+  return w;
+};
+
+// Animate window close and remove from openWindows and dock.
+function animateClose(w) {
+  w.classList.remove("show");
+  w.classList.add("closing");
+  setTimeout(function(){
+    w.remove();
+    openWindows = openWindows.filter(function(win){ return win !== w; });
+    removeFromDock(w);
+  }, 300);
+}
+
+// Dock support: add a dock icon.
+function addToDock(w) {
+    var dock = $("#dock");
+    if (!w.dockIcon) {
+      var di = document.createElement("div");
+      di.classList.add("dock-icon");
+      di.textContent = w.querySelector(".title").textContent;
+      di.addEventListener("click", function(){
+        if (w.style.display === "none") {
+          restoreWindow(w, di);
+        }
+      });
+      dock.appendChild(di);
+      w.dockIcon = di;
+    }
+  }
+  function removeFromDock(w) {
+    if (w.dockIcon) {
+      w.dockIcon.remove();
+      delete w.dockIcon;
+    }
+  }
+
+
+
       function addFinderIcon(container, type, label, left, top, itemData, store) {
     var icon = create("div", { class: "finder-icon", style: {
       left: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : left + "px",
@@ -772,7 +840,55 @@
         }
       };
 
-      
+// --- Process Manager App ---
+OS.processManager = function() {
+    var contentHTML = '<div id="process-manager-content" style="padding: 10px;">' +
+                      '<h3>Process Manager</h3>' +
+                      '<ul id="process-list" style="list-style: none; padding: 0;"></ul>' +
+                      '</div>';
+    var w = OS.createWindow("Process Manager", contentHTML);
+    w.style.width = "400px";
+    w.style.height = "300px";
+    var processList = w.querySelector("#process-list");
+    openWindows.forEach(function(win) {
+      var title = win.querySelector(".title").textContent;
+      var li = document.createElement("li");
+      li.style.marginBottom = "5px";
+      li.style.display = "flex";
+      li.style.justifyContent = "space-between";
+      li.style.alignItems = "center";
+      li.textContent = title;
+      var shutdownBtn = document.createElement("button");
+      shutdownBtn.textContent = "Shutdown";
+      shutdownBtn.style.marginLeft = "10px";
+      shutdownBtn.addEventListener("click", function() {
+         animateClose(win);
+         li.remove();
+      });
+      li.appendChild(shutdownBtn);
+      processList.appendChild(li);
+    });
+    return w;
+  };
+
+  // --- Modify Apple Menu Dropdown to add Process Manager option ---
+  $("#apple-dropdown").addEventListener("click", function(e) {
+    var action = e.target.getAttribute("data-action");
+    if (action) {
+      if (action === "about") {
+        alert("Retro Mac OS 9\nVersion 1.0");
+      } else if (action === "system") {
+        OS.openCodeEditor();
+      } else if (action === "process-manager") {
+        OS.processManager();
+      } else if (action === "restart") {
+        alert("Restarting... (not really)");
+      } else if (action === "shutdown") {
+        alert("Shutting down... (not really)");
+      }
+    }
+  });
+        
   // --- Updated OS.createHTMLWindow with progress indicator & injection ---
   OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
     var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
