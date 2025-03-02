@@ -576,51 +576,87 @@
         setTimeout(function() { w.classList.add("show"); }, 10);
         return w;
       }
-      function addFinderIcon(container, type, label, left, top, itemData, store){
-        var icon = create("div", { class: "finder-icon", style: {
-          left: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : left + "px",
-          top: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : top + "px",
-          right: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
-          bottom: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
-          position: "absolute",
-          width: "64px"
-        }});
-        if(type === "app" && itemData && itemData.icon && !itemData.icon.startsWith("#")) {
-          var img = document.createElement("img");
-          img.src = itemData.icon;
-          icon.appendChild(img);
-        } else {
-          var svg = create("svg:svg", { width: "48", height: "48" }),
-              use = create("svg:use", { "xlink:href": type === "folder" ? (itemData && itemData.isTrash ? "#icon-trash" : "#icon-folder") : (type === "file" ? "#icon-file" : "#icon-finder") });
-          svg.appendChild(use);
-          icon.appendChild(svg);
-        }
-        var txt = create("div", { text: label });
-        icon.appendChild(txt);
-        if(itemData){
-          icon.storedItem = itemData;
-        } else if(store){
-          var newItem = { type: type, label: label, left: left, top: top, folderContents: type === "folder" ? [] : undefined };
-          icon.storedItem = newItem;
-          if(container.folderData && container.folderData.folderContents){
-            FilesystemAPI.addItem(container.folderData, newItem);
-          }
-        }
-        on(icon, "mousedown", function(e){ startDrag(icon, e); e.stopPropagation(); });
-        on(icon, "dblclick", function(e){
-          if(icon.storedItem) {
-            if(icon.storedItem.type === "folder") {
-              openFolderWindow(icon.storedItem);
-            } else if(icon.storedItem.type === "app") {
-              icon.storedItem.action && icon.storedItem.action();
-            } else if(icon.storedItem.type === "file") {
-              alert('File "' + icon.storedItem.label + '" opened.');
-            }
-          }
-          e.stopPropagation();
-        });
-        container.appendChild(icon);
+      function addFinderIcon(container, type, label, left, top, itemData, store) {
+    var icon = create("div", { class: "finder-icon", style: {
+      left: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : left + "px",
+      top: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : top + "px",
+      right: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
+      bottom: (itemData && itemData.isTrash && container.id === "desktop-content") ? "10px" : "auto",
+      position: "absolute",
+      width: "64px"
+    }});
+    // For apps, if a custom icon URL exists, use an <img> instead of SVG.
+    if(type === "app" && itemData && itemData.icon && !itemData.icon.startsWith("#")) {
+      var img = document.createElement("img");
+      img.src = itemData.icon;
+      icon.appendChild(img);
+    } else {
+      var svg = create("svg:svg", { width: "48", height: "48" }),
+          use = create("svg:use", { "xlink:href": type === "folder" ? (itemData && itemData.isTrash ? "#icon-trash" : "#icon-folder") : (type === "file" ? "#icon-file" : "#icon-finder") });
+      svg.appendChild(use);
+      icon.appendChild(svg);
+    }
+    var txt = create("div", { text: label });
+    icon.appendChild(txt);
+    if(itemData) {
+      icon.storedItem = itemData;
+    } else if(store) {
+      var newItem = { type: type, label: label, left: left, top: top, folderContents: type === "folder" ? [] : undefined };
+      icon.storedItem = newItem;
+      if(container.folderData && container.folderData.folderContents) {
+        FilesystemAPI.addItem(container.folderData, newItem);
       }
+    }
+    // Existing mousedown and dblclick handlers...
+    on(icon, "mousedown", function(e) { startDrag(icon, e); e.stopPropagation(); });
+    on(icon, "dblclick", function(e) {
+      if(icon.storedItem) {
+        if(icon.storedItem.type === "folder") {
+          openFolderWindow(icon.storedItem);
+        } else if(icon.storedItem.type === "app") {
+          icon.storedItem.action && icon.storedItem.action();
+        } else if(icon.storedItem.type === "file") {
+          alert('File "' + icon.storedItem.label + '" opened.');
+        }
+      }
+      e.stopPropagation();
+    });
+    // --- New: Context menu on right-click for apps ---
+    icon.addEventListener("contextmenu", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (icon.storedItem && icon.storedItem.type === "app") {
+        // Remove any existing icon context menu.
+        var existingMenu = document.getElementById("icon-context-menu");
+        if (existingMenu) existingMenu.remove();
+
+        var menu = document.createElement("div");
+        menu.id = "icon-context-menu";
+        menu.style.position = "absolute";
+        menu.style.background = "#fff";
+        menu.style.border = "1px solid #aaa";
+        menu.style.borderRadius = "4px";
+        menu.style.boxShadow = "2px 2px 5px rgba(0,0,0,0.3)";
+        menu.style.padding = "5px";
+        menu.style.zIndex = "10000";
+        menu.innerHTML = '<div style="padding: 5px; cursor: pointer;">Open</div>';
+        menu.style.left = e.pageX + "px";
+        menu.style.top = e.pageY + "px";
+        document.body.appendChild(menu);
+        menu.firstChild.addEventListener("click", function() {
+          if (icon.storedItem && icon.storedItem.action) {
+            icon.storedItem.action();
+          }
+          menu.remove();
+        });
+        document.addEventListener("click", function handler() {
+          menu.remove();
+          document.removeEventListener("click", handler);
+        });
+      }
+    });
+    container.appendChild(icon);
+  }
       function startDrag(el, e){
         var initialX = e.clientX, initialY = e.clientY,
             origRect = el.getBoundingClientRect(),
