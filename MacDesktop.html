@@ -218,7 +218,16 @@
       display: block;
       margin: 0 auto;
     }
-    #desktop-content .finder-icon div {
+    .undraggable {
+      user-drag: none; 
+      user-select: none;
+      -moz-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      pointer-events: none;
+    }
+      #desktop-content .finder-icon div {
       color: #fff;
       background: rgba(0,0,0,0.5);
       padding: 2px 4px;
@@ -410,7 +419,7 @@
     //const $ = (id, e = document) => e.getElementById(id);
     //const $$ = (selector, e = document) => e.querySelectorAll(selector);
     const $on = (e, event, handler) => $for(e, e => e.addEventListener(event, handler));
-    const $html = (e, html) => { $for(e, e => e.innerHTML = html); };
+    const $html = (e, html) => { var r = ($(e) || document.createElement('div')); r.innerHTML = html; return r; };
     const $css = (e, css) => { $for(e, e => e.style.cssText = css); };
     const $addClass = (e, className) => $for(e, e => e.classList.add(className));
     const $removeClass = (e, className) => $for(e, e => e.classList.remove(className));
@@ -558,6 +567,7 @@
         },
         // --- New OS.openFile: Dynamically open a file object based on its properties ---
         openFile: function(file) {
+          
           if(file.type === "folder") {
             // Open folder in a Finder window.
             openFolderWindow(file);
@@ -764,7 +774,33 @@
       return w;
     };
 
-    /***** Modified addFinderIcon (includes right-click context menu) *****/
+  /***** New: OS.promptSetIcon *****/
+  OS.promptSetIcon = function(fileItem, imageUrl) {
+    return new Promise(function(resolve) {
+      var promptHTML =
+        '<div style="padding:20px; text-align:center;">' +
+          '<p>Set this image as the icon for "' + fileItem.label + '"?</p>' +
+          '<img src="'+ imageUrl +'" style="max-width:100%; max-height:100px; margin:10px 0;"/>' +
+          '<br/><button id="btn-set-icon" style="margin:10px;">Yes</button>' +
+          '<button id="btn-cancel-icon" style="margin:10px;">No</button>' +
+        '</div>';
+      var promptWin = OS.createWindow("Set Icon", promptHTML);
+      promptWin.style.width = "300px";
+      promptWin.style.height = "300px";
+      // When the user clicks "Yes":
+      $on("#btn-set-icon", "click", function() {
+        resolve(true);
+        promptWin.remove();
+      });
+      // When the user clicks "No":
+      $on("#btn-cancel-icon", "click", function() {
+        resolve(false);
+        promptWin.remove();
+      });
+    });
+  };
+
+  /***** Updated addFinderIcon: attach drop handler to update icon *****/
   function addFinderIcon(container, type, label, left, top, itemData, store) {
     var icon = create("div", { class: "finder-icon", style: {
       left: (itemData && itemData.isTrash && container.id === "desktop-content") ? "auto" : left + "px",
@@ -774,9 +810,12 @@
       position: "absolute",
       width: "64px"
     }});
+    // For apps, if a custom icon URL exists, use an <img> instead of the default SVG.
     if(type === "app" && itemData && itemData.icon && !itemData.icon.startsWith("#")) {
-      var img = document.createElement("img");
-      img.src = itemData.icon;
+      var img = create("img", { class: "undraggable", src: itemData.icon,style: {
+        width: "48px",
+        height: "48px"  
+      }});
       icon.appendChild(img);
     } else {
       var svg = create("svg:svg", { width: "48", height: "48" }),
@@ -795,22 +834,23 @@
         FilesystemAPI.addItem(container.folderData, newItem);
       }
     }
+
     $on(icon, "mousedown", function(e){ startDrag(icon, e); e.stopPropagation(); });
-    $on(icon, "dblclick", function(e)
-    {
+    $on(icon, "dblclick", function(e){
       if(icon.storedItem) {
-        if (icon.storedItem.action) icon.storedItem.action();
-        else {
-           OS.openFile(icon.storedItem);
+        if(icon.storedItem.type === "folder") {
+          openFolderWindow(icon.storedItem);
+        } else {
+          // Dynamically open the file using OS.openFile().
+          OS.openFile(icon.storedItem);
         }
       }
-    
       e.stopPropagation();
-  });
-    $on(icon, "contextmenu", function(e) {
+    });
+    // New: Right-click context menu (as before)
+    icon.addEventListener("contextmenu", function(e) {
       e.preventDefault();
       e.stopPropagation();
-      
       if (icon.storedItem && icon.storedItem.type === "app") {
         var existingMenu = document.getElementById("icon-context-menu");
         if (existingMenu) existingMenu.remove();
@@ -836,6 +876,49 @@
         document.addEventListener("click", function handler() {
           menu.remove();
           document.removeEventListener("click", handler);
+        });
+      }
+    });
+    // New: Drop event handler for updating icon
+    icon.addEventListener("drop", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var imageData = null;
+      // Check for file drop.
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        var file = e.dataTransfer.files[0];
+        if (file.type.startsWith("image/")) {
+          imageData = URL.createObjectURL(file);
+        }
+      } else {
+        var textData = e.dataTransfer.getData("text/plain");
+        if (textData && /\.(png|jpe?g|svg)$/i.test(textData)) {
+          imageData = textData;
+        }
+      }
+      if (imageData) {
+        OS.promptSetIcon(icon.storedItem, imageData).then(function(set) {
+          if (set) {
+            // Update the finder icon display.
+            // If the current first child is an <img>, update its src; otherwise, replace with one.
+            if (icon.firstChild && icon.firstChild.tagName === "IMG") {
+              icon.firstChild.src = imageData;
+            } else {
+              icon.innerHTML = ""; // Remove existing content.
+              var newImg = document.createElement("img");
+              newImg.src = imageData;
+              newImg.style.width = "48px";
+              newImg.style.height = "48px";
+              icon.appendChild(newImg);
+              // Re-add the text label.
+              var newTxt = document.createElement("div");
+              newTxt.textContent = icon.storedItem.label;
+              icon.appendChild(newTxt);
+            }
+            // Update the file item.
+            icon.storedItem.icon = imageData;
+            FilesystemAPI.saveFilesystem();
+          }
         });
       }
     });
