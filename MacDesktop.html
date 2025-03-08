@@ -764,24 +764,6 @@
       return w;
     };
 
-    // Modify Apple menu to add Process Manager option.
-    $on("#apple-dropdown", "click", (e) => {
-      var action = e.target.getAttribute("data-action");
-      if (action) {
-        if (action === "about") {
-          alert("Retro Mac OS 9\nVersion 1.0");
-        } else if (action === "system") {
-          OS.openCodeEditor();
-        } else if (action === "process-manager") {
-          OS.processManager();
-        } else if (action === "restart") {
-          alert("Restarting... (not really)");
-        } else if (action === "shutdown") {
-          alert("Shutting down... (not really)");
-        }
-      }
-    });
-
     /***** Modified addFinderIcon (includes right-click context menu) *****/
   function addFinderIcon(container, type, label, left, top, itemData, store) {
     var icon = create("div", { class: "finder-icon", style: {
@@ -934,6 +916,7 @@
           el.storedItem.left = newLeft;
           el.storedItem.top = newTop;
         }
+        FilesystemAPI.saveFilesystem();
         if (origContainer.folderData && dropTarget.folderData && origContainer.folderData !== dropTarget.folderData) {
           FilesystemAPI.removeItem(origContainer.folderData, el.storedItem);
           if (!dropTarget.folderData.folderContents.includes(el.storedItem))
@@ -950,44 +933,7 @@
         if(c) { c.textContent = (h<10?"0"+h:h) + ":" + (m<10?"0"+m:m) + ":" + (s<10?"0"+s:s); }
       }
 
-   /***** Menu Dropdown: Ensure dropdown remains accessible *****/
-  var menuHideTimeout;
-  $for("#menu-bar .menu-item", function(item) {
-    $on(item, "mouseenter", function() {
-      clearTimeout(menuHideTimeout);
-      $$("#menu-bar .dropdown").forEach(function(dd) {
-        dd.classList.remove("active");
-      });
-      var dropdown = $(".dropdown", item);
-      if (dropdown) dropdown.classList.add("active");
-    });
-  });
-  $on("#menu-bar", "mouseleave", function() {
-    menuHideTimeout = setTimeout(function() {
-      $$("#menu-bar .dropdown").forEach(function(dd) {
-        dd.classList.remove("active");
-      });
-    }, 1000);
-  });
- 
-  // Also keep dropdown open if pointer is over it.
-  $$("#menu-bar .dropdown").forEach(function(dd) {
-    dd.addEventListener("mouseenter", function() {
-      clearTimeout(menuHideTimeout);
-      dd.classList.add("active");
-    });
-    dd.addEventListener("mouseleave", function() {
-      menuHideTimeout = setTimeout(function() {
-        dd.classList.remove("active");
-      }, 1000);
-    });
-  });
-
-    // Example: update the Windows menu when it's opened.
-    $on("#windows-menu", "mouseenter", function() {
-      updateWindowsMenu();
-    });
-
+    
     OS.processManager = function() {
       var contentHTML = '<div id="process-manager-content" style="padding: 10px;">' +
                         '<h3>Process Manager</h3>' +
@@ -1401,7 +1347,7 @@
       
       // Top Menu Bar auto-show behavior using hover with a short delay to prevent premature disappearance
       var menuHideTimeout;
-      $$("#menu-bar .menu-item").forEach(function(item) {
+      $for("#menu-bar .menu-item", item => {
         item.addEventListener("mouseenter", function() {
           clearTimeout(menuHideTimeout);
           $$("#menu-bar .dropdown").forEach(function(dd) {
@@ -1411,7 +1357,7 @@
           if(dropdown) dropdown.classList.add("active");
         });
       });
-      $("#menu-bar").addEventListener("mouseleave", function() {
+      $on("#menu-bar", "mouseleave", ()=> {
         clearTimeout(menuHideTimeout);
         menuHideTimeout = setTimeout(function() {
           $$("#menu-bar .dropdown").forEach(function(dd) {
@@ -1420,7 +1366,7 @@
         }, 200);
       });
 
-    $("#apple-dropdown").addEventListener("click", function(e) {
+    $on("#apple-dropdown", "click", e=> {
       var action = e.target.getAttribute("data-action");
       if (action) {
         if (action === "about") {
@@ -1435,6 +1381,10 @@
           alert("Shutting down... (not really)");
         }
       }
+    });
+
+    $on("#windows-menu", "mouseenter", function() {
+          updateWindowsMenu();
     });
 
     $("#file-dropdown").addEventListener("click", function(e) {
