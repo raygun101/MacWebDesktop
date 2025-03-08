@@ -458,133 +458,6 @@
         window.systemConfig.theme === "classic-os9" ? "theme-classicos9" : "theme-modern"
       );
 
-
-      /***** External Link Drop Options *****/
-  // New helper: Show a simple prompt that returns a Promise which resolves to the user's choice.
-  function promptLinkChoice() {
-    return new Promise(function(resolve) {
-      // Create a simple modal prompt overlay.
-      var overlay = document.createElement("div");
-      overlay.style.position = "fixed";
-      overlay.style.top = "0";
-      overlay.style.left = "0";
-      overlay.style.width = "100%";
-      overlay.style.height = "100%";
-      overlay.style.background = "rgba(0,0,0,0.5)";
-      overlay.style.display = "flex";
-      overlay.style.alignItems = "center";
-      overlay.style.justifyContent = "center";
-      overlay.style.zIndex = "10000";
-      
-      var promptBox = document.createElement("div");
-      promptBox.style.background = "#fff";
-      promptBox.style.padding = "20px";
-      promptBox.style.borderRadius = "8px";
-      promptBox.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
-      promptBox.innerHTML = "<p>Do you want to:</p>";
-      
-      var btnLink = document.createElement("button");
-      btnLink.textContent = "Make Link";
-      btnLink.style.marginRight = "10px";
-      var btnInstall = document.createElement("button");
-      btnInstall.textContent = "Install App";
-      
-      promptBox.appendChild(btnLink);
-      promptBox.appendChild(btnInstall);
-      overlay.appendChild(promptBox);
-      document.body.appendChild(overlay);
-      
-      btnLink.addEventListener("click", function() {
-        overlay.remove();
-        resolve("link");
-      });
-      btnInstall.addEventListener("click", function() {
-        overlay.remove();
-        resolve("install");
-      });
-    });
-  }
-
-  // New helper: Fetch full content for installation.
-  function fetchAppContent(url) {
-    return fetch(url).then(function(response) {
-      return response.text();
-    });
-  }
-
-    /***** Modified Drop Handler *****/
-  function setupExternalLinkDrop(container) {
-    container.addEventListener("dragover", function(e) {
-      e.preventDefault();
-    });
-    container.addEventListener("drop", function(e) {
-      e.preventDefault();
-      var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
-      if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
-         var file = e.dataTransfer.files[0];
-         data = URL.createObjectURL(file);
-         console.log("Dropped file; blob URL:", data);
-      }
-      console.log("Dropped data:", data);
-      if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
-         // Fetch page details (title and favicon) for the external link.
-         getPageDetails(data)
-         .then(function(details) {
-             var pageTitle = details.title;
-             var iconUrl = details.iconUrl;
-             // Ask the user if they want to make a link or install the app.
-             promptLinkChoice().then(function(choice) {
-               if (choice === "link") {
-                 // Create a link icon.
-                 var newItem = { 
-                   type: "app", 
-                   label: pageTitle, 
-                   url: data, 
-                   icon: iconUrl, 
-                   action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
-                 };
-                 // Add the new item to the desktop filesystem.
-                 filesystem.desktop.folderContents.push(newItem);
-                 saveFilesystem();
-                 addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, newItem, true);
-               } else if (choice === "install") {
-                 // Fetch the full HTML content.
-                 fetchAppContent(data).then(function(content) {
-                   // Create an installed app file.
-                   var newItem = { 
-                     type: "app", 
-                     label: pageTitle, 
-                     url: data, 
-                     content: content,  // Store the content for offline use
-                     icon: iconUrl, 
-                     action: function() { OS.loadFile(newItem); }
-                   };
-                   filesystem.desktop.folderContents.push(newItem);
-                   saveFilesystem();
-                   addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, newItem, true);
-                 }).catch(function(err) {
-                   console.error("Failed to install app:", err);
-                 });
-               }
-             });
-         })
-         .catch(function(err) {
-             console.error("Failed to fetch page details:", err);
-             // Fallback: just create a link item.
-             var newItem = { 
-               type: "app", 
-               label: data, 
-               url: data, 
-               action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
-             };
-             filesystem.desktop.folderContents.push(newItem);
-             saveFilesystem();
-             addFinderIcon(container, "app", data, e.offsetX, e.offsetY, newItem, true);
-         });
-      }
-    });
-  }
-  
       // -----------------------------
       // Core window and drag/drop functions
       function dragElement(el, e){
@@ -683,104 +556,95 @@
           document.body.classList.remove("theme-modern", "theme-classicos9");
           document.body.classList.add(themeName === "classic-os9" ? "theme-classicos9" : "theme-modern");
           alert("Theme changed to " + themeName);
-        }
-      };
-
-  /***** New: App Loader *****/
-  // OS.loadFile() decides how to open a file.
-  // If the file has a "content" property (installed app), open it in a window that displays the content.
-  // Otherwise, use the URL to load in an HTML window.
-  OS.loadFile = function(fileItem) {
-    if (fileItem.content) {
-      // Open the file using its stored content.
-      var w = OS.createWindow(fileItem.label, fileItem.content);
-      w.style.width = "800px";
-      w.style.height = "600px";
-      return w;
-    } else if (fileItem.url) {
-      // Fallback: open as an HTML app.
-      return OS.createHTMLWindow(fileItem.label, fileItem.url, 800, 600);
-    }
-  };
-
-    OS.createWindow = function(title, contentHTML) {
-      var w = document.createElement("div");
-      w.classList.add("window");
-      w.style.top = "100px";
-      w.style.left = "100px";
-      w.style.width = "400px";
-      w.style.height = "300px";
-      w.style.zIndex = zIndexCounter++;
-      w.addEventListener("mousedown", function(){ 
+        },
+        loadFile: function(fileItem) {
+          if (fileItem.content) {
+            // Open using stored content (via srcdoc)
+            return OS.createHTMLWindow(fileItem.label, fileItem.url, 800, 600, fileItem.content);
+          } else if (fileItem.url) {
+            return OS.createHTMLWindow(fileItem.label, fileItem.url, 800, 600);
+          }
+        },
+          
+      createWindow: function(title, contentHTML) {
+        var w = document.createElement("div");
+        w.classList.add("window");
+        w.style.top = "100px";
+        w.style.left = "100px";
+        w.style.width = "400px";
+        w.style.height = "300px";
+        w.style.zIndex = zIndexCounter++;
+        w.addEventListener("mousedown", function(){ 
+          updateActiveWindow(w);
+        });
+        var h = document.createElement("div");
+        h.classList.add("window-header");
+        var ctr = document.createElement("div");
+        ctr.classList.add("window-controls");
+        var cl = document.createElement("span");
+        cl.classList.add("close");
+        cl.title = "Close";
+        cl.addEventListener("click", function(e){ 
+          e.stopPropagation(); 
+          animateClose(w);
+        });
+        ctr.appendChild(cl);
+        var mn = document.createElement("span");
+        mn.classList.add("minimize");
+        mn.title = "Minimize";
+        mn.addEventListener("click", function(e){ 
+          e.stopPropagation(); 
+          minimizeWindow(w);
+        });
+        ctr.appendChild(mn);
+        var mx = document.createElement("span");
+        mx.classList.add("maximize");
+        mx.title = "Maximize/Restore";
+        mx.addEventListener("click", function(e){
+          e.stopPropagation();
+          if(w.dataset.maximized === "true"){
+            var orig = JSON.parse(w.dataset.originalRect);
+            w.style.top = orig.top;
+            w.style.left = orig.left;
+            w.style.width = orig.width;
+            w.style.height = orig.height;
+            w.dataset.maximized = "false";
+          } else {
+            w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
+            w.style.top = "24px";
+            w.style.left = "0px";
+            w.style.width = "100%";
+            w.style.height = "calc(100% - 24px)";
+            w.dataset.maximized = "true";
+          }
+        });
+        ctr.appendChild(mx);
+        h.appendChild(ctr);
+        var ts = document.createElement("span");
+        ts.classList.add("title");
+        ts.textContent = title;
+        h.appendChild(ts);
+        w.appendChild(h);
+        var cd = document.createElement("div");
+        cd.classList.add("window-content");
+        cd.style.position = "relative";
+        cd.innerHTML = contentHTML;
+        w.appendChild(cd);
+        h.addEventListener("mousedown", function(e){ dragElement(w, e); });
+        var rh = document.createElement("div");
+        rh.classList.add("resize-handle");
+        w.appendChild(rh);
+        rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
+        $("#window-container").appendChild(w);
+        setTimeout(function() { w.classList.add("show"); }, 10);
+        openWindows.push(w);
+        // Automatically add this window to the dock.
+        addToDock(w);
         updateActiveWindow(w);
-      });
-      var h = document.createElement("div");
-      h.classList.add("window-header");
-      var ctr = document.createElement("div");
-      ctr.classList.add("window-controls");
-      var cl = document.createElement("span");
-      cl.classList.add("close");
-      cl.title = "Close";
-      cl.addEventListener("click", function(e){ 
-        e.stopPropagation(); 
-        animateClose(w);
-      });
-      ctr.appendChild(cl);
-      var mn = document.createElement("span");
-      mn.classList.add("minimize");
-      mn.title = "Minimize";
-      mn.addEventListener("click", function(e){ 
-        e.stopPropagation(); 
-        minimizeWindow(w);
-      });
-      ctr.appendChild(mn);
-      var mx = document.createElement("span");
-      mx.classList.add("maximize");
-      mx.title = "Maximize/Restore";
-      mx.addEventListener("click", function(e){
-        e.stopPropagation();
-        if(w.dataset.maximized === "true"){
-          var orig = JSON.parse(w.dataset.originalRect);
-          w.style.top = orig.top;
-          w.style.left = orig.left;
-          w.style.width = orig.width;
-          w.style.height = orig.height;
-          w.dataset.maximized = "false";
-        } else {
-          w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
-          w.style.top = "24px";
-          w.style.left = "0px";
-          w.style.width = "100%";
-          w.style.height = "calc(100% - 24px)";
-          w.dataset.maximized = "true";
-        }
-      });
-      ctr.appendChild(mx);
-      h.appendChild(ctr);
-      var ts = document.createElement("span");
-      ts.classList.add("title");
-      ts.textContent = title;
-      h.appendChild(ts);
-      w.appendChild(h);
-      var cd = document.createElement("div");
-      cd.classList.add("window-content");
-      cd.style.position = "relative";
-      cd.innerHTML = contentHTML;
-      w.appendChild(cd);
-      h.addEventListener("mousedown", function(e){ dragElement(w, e); });
-      var rh = document.createElement("div");
-      rh.classList.add("resize-handle");
-      w.appendChild(rh);
-      rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
-      $("#window-container").appendChild(w);
-      setTimeout(function() { w.classList.add("show"); }, 10);
-      openWindows.push(w);
-      // Automatically add this window to the dock.
-      addToDock(w);
-      updateActiveWindow(w);
-      return w;
+        return w;
+      }
     };
-
+    
     // Animate window close.
     function animateClose(w) {
       w.classList.remove("show");
@@ -1067,28 +931,41 @@
         if(c) { c.textContent = (h<10?"0"+h:h) + ":" + (m<10?"0"+m:m) + ":" + (s<10?"0"+s:s); }
       }
 
-    // Update Windows menu auto-show on hover.
-    $$("#menu-bar .menu-item").forEach(function(item) {
-      item.addEventListener("mouseenter", function() {
-        clearTimeout(menuHideTimeout);
-        $$("#menu-bar .dropdown").forEach(function(dd) {
-          dd.classList.remove("active");
-        });
-        var dropdown = item.querySelector(".dropdown");
-        if (dropdown) dropdown.classList.add("active");
+   /***** Menu Dropdown: Ensure dropdown remains accessible *****/
+  var menuHideTimeout;
+  $for("#menu-bar .menu-item", function(item) {
+    $on(item, "mouseenter", function() {
+      clearTimeout(menuHideTimeout);
+      $$("#menu-bar .dropdown").forEach(function(dd) {
+        dd.classList.remove("active");
       });
+      var dropdown = $(".dropdown", item);
+      if (dropdown) dropdown.classList.add("active");
     });
-    var menuHideTimeout;
-    $("#menu-bar").addEventListener("mouseleave", function() {
+  });
+  $on("#menu-bar", "mouseleave", function() {
+    menuHideTimeout = setTimeout(function() {
+      $$("#menu-bar .dropdown").forEach(function(dd) {
+        dd.classList.remove("active");
+      });
+    }, 1000);
+  });
+ 
+  // Also keep dropdown open if pointer is over it.
+  $$("#menu-bar .dropdown").forEach(function(dd) {
+    dd.addEventListener("mouseenter", function() {
+      clearTimeout(menuHideTimeout);
+      dd.classList.add("active");
+    });
+    dd.addEventListener("mouseleave", function() {
       menuHideTimeout = setTimeout(function() {
-        $$("#menu-bar .dropdown").forEach(function(dd) {
-          dd.classList.remove("active");
-        });
-      }, 200);
+        dd.classList.remove("active");
+      }, 1000);
     });
+  });
 
     // Example: update the Windows menu when it's opened.
-    $("#windows-menu").addEventListener("mouseenter", function() {
+    $on("#windows-menu", "mouseenter", function() {
       updateWindowsMenu();
     });
 
@@ -1121,34 +998,46 @@
       });
       return w;
     };
-    OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight) {
-      var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
-      var w = OS.createWindow(title, loadingHTML);
-      w.style.width = desiredWidth + 'px';
-      w.style.height = desiredHeight + 'px';
-      var iframe = document.createElement("iframe");
-      iframe.style.width = "100%";
-      iframe.style.height = "100%";
-      iframe.style.border = "none";
-      iframe.style.opacity = "0";
+
+    
+    /***** OS.createHTMLWindow now accepts an optional content parameter *****/
+  OS.createHTMLWindow = function(title, url, desiredWidth, desiredHeight, content) {
+    var loadingHTML = '<div id="loading-indicator" style="display: flex; align-items: center; justify-content: center; height: 100%;">Loading...</div>';
+    var w = OS.createWindow(title, loadingHTML);
+    w.style.width = desiredWidth + 'px';
+    w.style.height = desiredHeight + 'px';
+    var iframe = document.createElement("iframe");
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "none";
+    iframe.style.opacity = "0"; // hidden until loaded
+
+    // If raw content is provided, use srcdoc; else, use url.
+    if (content) {
+      iframe.srcdoc = content;
+    } else {
       iframe.src = url;
-      var contentDiv = w.querySelector(".window-content");
-      contentDiv.appendChild(iframe);
-      //iframe.focus();
-      iframe.onload = function() {
-        try {
-          iframe.contentWindow.desktopCore = {
-            closeApp: function() {
-              animateClose(w);
-            }
-          };
-        } catch (err) {
-          console.error("desktopCore injection failed:", err);
-        }
-        var loadingDiv = w.querySelector("#loading-indicator");
-        if (loadingDiv) loadingDiv.remove();
-        // Attempt to extract favicon.
-        var iconUrl = null;
+    }
+
+    var contentDiv = w.querySelector(".window-content");
+    contentDiv.appendChild(iframe);
+
+    iframe.onload = function() {
+      try {
+        // Inject a desktopCore object into the iframe for app controls.
+        iframe.contentWindow.desktopCore = {
+          closeApp: function() {
+            animateClose(w);
+          }
+          // Extend as needed.
+        };
+      } catch (err) {
+        console.error("desktopCore injection failed:", err);
+      }
+      var loadingDiv = w.querySelector("#loading-indicator");
+      if (loadingDiv) loadingDiv.remove();
+      // Attempt to extract favicon.
+      var iconUrl = null;
         try {
           var doc = iframe.contentDocument || iframe.contentWindow.document;
           var iconEl = doc.querySelector('link[rel="icon"], link[rel="shortcut icon"]');
@@ -1166,29 +1055,31 @@
         } catch (ex) {
           console.warn("Favicon extraction failed:", ex);
         }
+      iframe.style.transition = "opacity 0.3s ease";
+      iframe.style.opacity = "1";
+      w.classList.add("show");
+      updateActiveWindow(w);
+    };
+    // Fallback in case onload never fires
+    setTimeout(function() {
+      if (iframe.style.opacity !== "1") {
+        var loadingDiv = w.querySelector("#loading-indicator");
+        if (loadingDiv) loadingDiv.remove();
         iframe.style.transition = "opacity 0.3s ease";
         iframe.style.opacity = "1";
         w.classList.add("show");
         updateActiveWindow(w);
-      };
-      setTimeout(function() {
-        if (iframe.style.opacity !== "1") {
-          var loadingDiv = w.querySelector("#loading-indicator");
-          if (loadingDiv) loadingDiv.remove();
-          iframe.style.transition = "opacity 0.3s ease";
-          iframe.style.opacity = "1";
-          w.classList.add("show");
-          updateActiveWindow(w);
-        }
-      }, 5000);
-      iframe.onerror = function() {
-        var contentDiv = w.querySelector(".window-content");
-        contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
-                               '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
-                               '<p>Page failed to load</p></div>';
-      };
-      return w;
+      }
+    }, 5000);
+    iframe.onerror = function() {
+      var contentDiv = w.querySelector(".window-content");
+      contentDiv.innerHTML = '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">' +
+                             '<svg width="64" height="64"><use xlink:href="#icon-apple"></use></svg>' +
+                             '<p>Page failed to load</p></div>';
     };
+    return w;
+  };
+
     function getFaviconFromIframe(iframe) {
     try {
       var doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -1252,6 +1143,105 @@
     iconElem.src = iconUrl;
   }
 
+          /***** OS.promptImportChoice: Use an OS window as an import overlay *****/
+  OS.promptImportChoice = function(url) {
+    return new Promise(function(resolve) {
+      var promptHTML = 
+        '<div style="padding:20px; text-align:center;">' +
+          '<p>Import external link:</p>' +
+          '<p style="font-size:0.9em; color:#555;">' + url + '</p>' +
+          '<button id="btn-make-link" style="margin:10px;">Make Link</button>' +
+          '<button id="btn-install-app" style="margin:10px;">Install App</button>' +
+        '</div>';
+      var promptWin = OS.createWindow("Import External Link", promptHTML);
+      promptWin.style.width = "300px";
+      promptWin.style.height = "180px";
+      $("#btn-make-link").addEventListener("click", function() {
+        resolve("link");
+        promptWin.remove();
+      });
+      $("#btn-install-app").addEventListener("click", function() {
+        resolve("install");
+        promptWin.remove();
+      });
+    });
+  };
+
+  // New helper: Fetch full content for installation.
+  function fetchAppContent(url) {
+    return fetch(url).then(function(response) {
+      return response.text();
+    });
+  }
+
+    /***** Modified Drop Handler *****/
+  /***** Modified drop handler to offer a choice *****/
+  function setupExternalLinkDrop(container) {
+    $on(container, "dragover", function(e) {
+      e.preventDefault();
+    });
+    $on(container, "drop", function(e) {
+      e.preventDefault();
+      var data = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+      if (!data && e.dataTransfer.files && e.dataTransfer.files.length) {
+         var file = e.dataTransfer.files[0];
+         data = URL.createObjectURL(file);
+         console.log("Dropped file; blob URL:", data);
+      }
+      console.log("Dropped data:", data);
+      if (data && (data.startsWith("http") || data.startsWith("blob:"))) {
+         getPageDetails(data)
+         .then((details)=> {
+             var pageTitle = details.title;
+             var iconUrl = details.iconUrl;
+             // Show import overlay (OS window) for user choice.
+             OS.promptImportChoice(data).then((choice)=> {
+               if (choice === "link") {
+                 var newItem = { 
+                   type: "app", 
+                   label: pageTitle, 
+                   url: data, 
+                   icon: iconUrl, 
+                   action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
+                 };
+                 filesystem.desktop.folderContents.push(newItem);
+                 FilesystemAPI.saveFilesystem();
+                 addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, newItem, true);
+               } else if (choice === "install") {
+                 fetchAppContent(data).then((content)=> {
+                   var newItem = { 
+                     type: "app", 
+                     label: pageTitle, 
+                     url: data, 
+                     content: content,  // stored content
+                     icon: iconUrl, 
+                     action: function() { OS.loadFile(newItem); }
+                   };
+                   filesystem.desktop.folderContents.push(newItem);
+                   FilesystemAPI.saveFilesystem();
+                   addFinderIcon(container, "app", pageTitle, e.offsetX, e.offsetY, newItem, true);
+                 }).catch(function(err) {
+                   console.error("Failed to install app:", err);
+                 });
+               }
+             });
+         })
+         .catch(function(err) {
+             console.error("Failed to fetch page details:", err);
+             var newItem = { 
+               type: "app", 
+               label: data, 
+               url: data, 
+               action: function() { OS.createHTMLWindow("Link App", data, 800, 600); }
+             };
+             filesystem.desktop.folderContents.push(newItem);
+             FilesystemAPI.saveFilesystem();
+             addFinderIcon(container, "app", data, e.offsetX, e.offsetY, newItem, true);
+         });
+      }
+    });
+  }
+    
       // Code Editor app for editing system configuration (with theme change options added in System Preferences).
       OS.openCodeEditor = function() {
         var configText = JSON.stringify(window.systemConfig, null, 2);
@@ -1412,6 +1402,7 @@
         });
       });
       $("#menu-bar").addEventListener("mouseleave", function() {
+        clearTimeout(menuHideTimeout);
         menuHideTimeout = setTimeout(function() {
           $$("#menu-bar .dropdown").forEach(function(dd) {
             dd.classList.remove("active");
