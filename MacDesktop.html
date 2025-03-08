@@ -544,7 +544,6 @@
           if (!d) { console.error("desktop-content not found"); return; }
           d.folderData = filesystem.desktop;
           renderFolderContents(filesystem.desktop, d);
-          setupExternalLinkDrop(d);
           // Setup context menu for desktop finder.
           setupFinderContextMenu(d); 
           updateWindowsMenu()
@@ -557,15 +556,36 @@
           document.body.classList.add(themeName === "classic-os9" ? "theme-classicos9" : "theme-modern");
           alert("Theme changed to " + themeName);
         },
-        loadFile: function(fileItem) {
-          if (fileItem.content) {
-            // Open using stored content (via srcdoc)
-            return OS.createHTMLWindow(fileItem.label, fileItem.url, 800, 600, fileItem.content);
-          } else if (fileItem.url) {
-            return OS.createHTMLWindow(fileItem.label, fileItem.url, 800, 600);
+        // --- New OS.openFile: Dynamically open a file object based on its properties ---
+        openFile: function(file) {
+          if(file.type === "folder") {
+            // Open folder in a Finder window.
+            openFolderWindow(file);
+          } else if(file.type === "app") {
+            // Special case: if this is the Finder app.
+            if(file.fileID && file.fileID === "finder") {
+              OS.openFinder(filesystem.desktop);
+            } else {
+              // For other apps, open an HTML window.
+              if(file.content) {
+                return OS.createHTMLWindow(file.label, file.url, 800, 600, file.content);
+              } else if(file.url) {
+                return OS.createHTMLWindow(file.label, file.url, 800, 600);
+              } else {
+                alert("No URL or content available for " + file.label);
+              }
+            }
+          } else if(file.type === "file") {
+            // For generic files, try to open with stored content or via URL.
+            if(file.content) {
+              return OS.createHTMLWindow(file.label, file.url, 800, 600, file.content);
+            } else if(file.url) {
+              return OS.createHTMLWindow(file.label, file.url, 800, 600);
+            } else {
+              alert("Cannot open file: " + file.label);
+            }
           }
         },
-          
       createWindow: function(title, contentHTML) {
         var w = document.createElement("div");
         w.classList.add("window");
@@ -794,18 +814,17 @@
       }
     }
     $on(icon, "mousedown", function(e){ startDrag(icon, e); e.stopPropagation(); });
-    $on(icon, "dblclick", function(e){
+    $on(icon, "dblclick", function(e)
+    {
       if(icon.storedItem) {
-        if(icon.storedItem.type === "folder") {
-          openFolderWindow(icon.storedItem);
-        } else if(icon.storedItem.type === "app") {
-          icon.storedItem.action && icon.storedItem.action();
-        } else if(icon.storedItem.type === "file") {
-          OS.loadFile(icon.storedItem);
+        if (icon.storedItem.action) icon.storedItem.action();
+        else {
+           OS.openFile(icon.storedItem);
         }
       }
+    
       e.stopPropagation();
-    });
+  });
     $on(icon, "contextmenu", function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -1010,26 +1029,20 @@
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.style.border = "none";
-    iframe.style.opacity = "0"; // hidden until loaded
-
-    // If raw content is provided, use srcdoc; else, use url.
-    if (content) {
+    iframe.style.opacity = "0";  // hidden until loaded
+    if(content) {
       iframe.srcdoc = content;
     } else {
       iframe.src = url;
     }
-
     var contentDiv = w.querySelector(".window-content");
     contentDiv.appendChild(iframe);
-
     iframe.onload = function() {
       try {
-        // Inject a desktopCore object into the iframe for app controls.
         iframe.contentWindow.desktopCore = {
           closeApp: function() {
             animateClose(w);
           }
-          // Extend as needed.
         };
       } catch (err) {
         console.error("desktopCore injection failed:", err);
@@ -1060,7 +1073,6 @@
       w.classList.add("show");
       updateActiveWindow(w);
     };
-    // Fallback in case onload never fires
     setTimeout(function() {
       if (iframe.style.opacity !== "1") {
         var loadingDiv = w.querySelector("#loading-indicator");
@@ -1201,8 +1213,7 @@
                    type: "app", 
                    label: pageTitle, 
                    url: data, 
-                   icon: iconUrl, 
-                   action: function() { OS.createHTMLWindow(pageTitle, data, 800, 600); }
+                   icon: iconUrl 
                  };
                  filesystem.desktop.folderContents.push(newItem);
                  FilesystemAPI.saveFilesystem();
@@ -1214,8 +1225,7 @@
                      label: pageTitle, 
                      url: data, 
                      content: content,  // stored content
-                     icon: iconUrl, 
-                     action: function() { OS.loadFile(newItem); }
+                     icon: iconUrl 
                    };
                    filesystem.desktop.folderContents.push(newItem);
                    FilesystemAPI.saveFilesystem();
@@ -1293,21 +1303,21 @@
         addItem: function(folder, item) {
           if(folder && folder.folderContents) {
             folder.folderContents.push(item);
-            saveFilesystem();
+            this.saveFilesystem();
             updateOpenFinderWindows(folder);
           }
         },
         removeItem: function(folder, item) {
           if(folder && folder.folderContents) {
             folder.folderContents = folder.folderContents.filter(function(i){ return i !== item; });
-            saveFilesystem();
+            this.saveFilesystem();
             updateOpenFinderWindows(folder);
           }
         },
         renameItem: function(folder, item, newLabel) {
           if(item) {
             item.label = newLabel;
-            saveFilesystem();
+            this.saveFilesystem();
             updateOpenFinderWindows(folder);
           }
         },
@@ -1447,24 +1457,19 @@
       });
       
       var filesystem = localStorage.getItem("filesystem")
-      ? JSON.parse(localStorage.getItem("filesystem"))
-      : {
-          desktop: {
-            label: "Desktop",
-            folderContents: [
-              { type:"app", label:"Finder", left:250, top:50, icon:"#icon-finder",
-                action: function(){ OS.openFinder(filesystem.desktop); } },
-              { type:"app", label:"My App", left:50, top:50, icon:"#icon-folder",
-                action: function(){ OS.createWindow("My App", '<p>This is a sample app window.</p>'); } },
-              { type:"app", label:"HTML App", left:300, top:150, icon:"#icon-folder",
-                action: function(){ OS.createHTMLWindow("HTML App", "https://www.example.com", 800, 600); } },
-              { type:"app", label:"Code Editor", left:350, top:200, icon:"#icon-folder",
-                action: function(){ OS.openCodeEditor(); } },
-              { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
-            ]
-          }
-        };
-
+    ? JSON.parse(localStorage.getItem("filesystem"))
+    : {
+        desktop: {
+          label: "Desktop",
+          folderContents: [
+            { type:"app", label:"Finder", left:250, top:50, icon:"#icon-finder", fileID:"finder", url:"finder" },
+            { type:"app", label:"My App", left:50, top:50, icon:"#icon-folder", url:"myapp.html" },
+            { type:"app", label:"HTML App", left:300, top:150, icon:"#icon-folder", url:"https://www.example.com" },
+            { type:"app", label:"Code Editor", left:350, top:200, icon:"#icon-folder", url:"codeeditor.html" },
+            { type:"folder", label:"Trash", left:0, top:0, icon:"#icon-trash", isTrash:true, folderContents: [] }
+          ]
+        }
+      };
     OS.init();
   </script>
 </body>
