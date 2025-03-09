@@ -83,6 +83,10 @@
       z-index: 1000;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
+    #apple-menu {
+      padding: 0px 10px;
+      gap: 6px;
+    }
     .menu-item {
       margin-right: 15px;
       cursor: pointer;
@@ -156,6 +160,8 @@
     transition: transform 0.3s ease, opacity 0.3s ease;
     transform: scale(0.95);
     opacity: 0;
+    display: flex;
+    flex-direction: column;
   }
   .window.show {
     transform: scale(1);
@@ -170,16 +176,21 @@
     cursor: move;
     display: flex;
     align-items: center;
-    height: 24px;
+    height: 22px;
   }
   .window-header .window-controls {
     display: flex;
     gap: 7px;
   }
-  .title { font-weight: bold; }
+  .window-header .title { 
+    font-weight: normal; 
+    flex: 1;
+    text-align: center;
+    text-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
+  }
   .window-header .window-controls span {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     display: inline-block;
     border-radius: 50%;
     border: 1px solid #00000057;
@@ -190,8 +201,7 @@
   .window-header .maximize { background: green; }
   
   .window-content {
-    width: 100%;
-    height: calc(100% - 23px);
+    flex: 1;
     overflow: hidden;
     position: relative;
   }
@@ -352,6 +362,9 @@
       width: 100%;
       height: 100%;
       position: relative;
+      border: 1px solid #eaeaea;
+      background-color: rgba(255, 255, 255, 0.309);
+      border-radius: 4px;
     }
     #desktop-background {
       position: absolute;
@@ -417,11 +430,13 @@
     }
 
     .dialog {
+      display: flex;
+      flex-direction: column;
+      padding: 6px;
     }
     
     /* Header: Icon and text layout */
     .dialog-header {
-      margin: 6px;
       display: flex;
       align-items: center;
       padding: 20px;
@@ -453,9 +468,11 @@
     
     /* Footer: Buttons aligned to bottom right */
     .dialog-footer {
-      padding: 10px 20px;
+      padding: 6px;
       display: flex;
+      flex: 1;
       justify-content: flex-end;
+      align-items: flex-end;
       gap: 10px;
     }
   </style>
@@ -487,6 +504,35 @@
       <line x1="16" y1="20" x2="48" y2="20" stroke="#000" stroke-width="2"/>
       <rect x="24" y="8" width="16" height="12" fill="#ccc" stroke="#000" stroke-width="2"/>
     </symbol>
+    <symbol id="icon-warning" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad-warning" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#FFF176;stop-opacity:1"/>
+          <stop offset="100%" style="stop-color:#FFEE58;stop-opacity:1"/>
+        </linearGradient>
+      </defs>
+      <!-- A triangle with rounded corners can be simulated by a path with smooth joins -->
+      <path d="M32 8 L56 56 Q32 64 8 56 Z" fill="url(#grad-warning)" stroke="#FBC02D" stroke-width="4" stroke-linejoin="round"/>
+      <line x1="32" y1="24" x2="32" y2="38" stroke="#424242" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="32" cy="46" r="3" fill="#424242"/>
+    </symbol>
+    <symbol id="icon-error" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="grad-error" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" style="stop-color:#FF8A80;stop-opacity:1"/>
+          <stop offset="100%" style="stop-color:#FF5252;stop-opacity:1"/>
+        </radialGradient>
+      </defs>
+      <circle cx="32" cy="32" r="28" fill="url(#grad-error)" stroke="#D32F2F" stroke-width="4"/>
+      <line x1="20" y1="20" x2="44" y2="44" stroke="#FFF" stroke-width="4" stroke-linecap="round"/>
+      <line x1="44" y1="20" x2="20" y2="44" stroke="#FFF" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="info-question" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="32" cy="32" r="28" fill="#66CCFF" stroke="#0099FF" stroke-width="4"/>
+      <path d="M32 20C28 20 26 24 26 26C26 28 28 30 30 30C32 30 34 32 34 34C34 38 30 38 30 42" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="32" cy="48" r="3" fill="#fff"/>
+    </symbol>
+    
   </svg>
 
   <!-- Desktop background -->
