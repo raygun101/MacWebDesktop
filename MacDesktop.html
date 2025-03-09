@@ -146,15 +146,16 @@
     }
     .window {
     position: absolute;
-    border: 2px solid #666;
+    overflow: hidden;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
     background-color: rgba(255, 255, 255, 0.433);
-    box-shadow: 5px 5px 30px var(--window-shadow);
     z-index: 300;
     transition: transform 0.3s ease, opacity 0.3s ease;
     transform: scale(0.95);
     opacity: 0;
-    border-radius: 20px;
   }
   .window.show {
     transform: scale(1);
@@ -165,16 +166,15 @@
     opacity: 0;
   }
   .window-header {
-    background: linear-gradient(to bottom, #ddd, #bbb);
-    padding: 4px;
+    padding: 10px;
     cursor: move;
     display: flex;
     align-items: center;
+    height: 24px;
   }
   .window-header .window-controls {
-    margin-right: 10px;
     display: flex;
-    gap: 4px;
+    gap: 7px;
   }
   .title { font-weight: bold; }
   .window-header .window-controls span {
@@ -182,6 +182,7 @@
     height: 16px;
     display: inline-block;
     border-radius: 50%;
+    border: 1px solid #00000057;
     cursor: pointer;
   }
   .window-header .close { background: red; }
@@ -215,6 +216,26 @@
       pointer-events: none;
     }
 
+    .window button {
+      padding: 6px 12px;
+      border: none;
+      background: #007aff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+    .dialog-footer button.cancel {
+      border-color: #999;
+      background: #aaa;
+    }
+    .dialog-footer button.destroy {
+      border-color: white;
+      background: rgb(249, 34, 34);
+    }
+
+
   .resize-handle {
     position: absolute;
     width: 16px;
@@ -222,7 +243,6 @@
     bottom: 0;
     right: 0;
     cursor: se-resize;
-    background: rgba(0,0,0,0.3);
   }
 
 
@@ -392,13 +412,51 @@
       font-size: 13px;
       cursor: pointer;
     }
-    .apple-dialog-actions button.destructive {
-      border-color: white;
-      color: white;
-      background: rgb(249, 34, 34);
-    }
     .apple-dialog-actions button:hover {
       background: #d0d0d0;
+    }
+
+    .dialog {
+    }
+    
+    /* Header: Icon and text layout */
+    .dialog-header {
+      margin: 6px;
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      border: 1px solid #eaeaea;
+      background-color: rgba(255, 255, 255, 0.309);
+      border-radius: 4px;
+    }
+    .dialog-icon {
+      width: 48px;
+      height: 48px;
+      margin-right: 20px;
+      flex-shrink: 0;
+    }
+    .dialog-icon img {
+      width: 100%;
+      height: 100%;
+    }
+    .dialog-text {
+      flex: 1;
+    }
+    .dialog-text h2 {
+      margin: 0 0 5px;
+      font-size: 18px;
+    }
+    .dialog-text p {
+      margin: 0;
+      color: #333;
+    }
+    
+    /* Footer: Buttons aligned to bottom right */
+    .dialog-footer {
+      padding: 10px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
     }
   </style>
 </head>
@@ -1764,8 +1822,8 @@ function animateClose(w) {
       icon: "https://example.com/alert-icon.svg",
       message: "Are you sure you want to restart?",
       actions: [
-        { label: "Cancel" },
-        { label: "Restart", class: "destructive", action: function(){ 
+        { label: "Cancel", class: "cancel" },
+        { label: "Delete All Data", class: "destroy", action: function(){ 
             FilesystemAPI.resetFilesystem();
             this.restart();
           }.bind(this) 
@@ -1774,36 +1832,52 @@ function animateClose(w) {
   }
 
   OS.showDialog = function(options) {
-    // Build dialog content.
+    // Create a window with our custom options:
+    // - headerVisible: false so we don't show the standard window header.
+    // - fullContent: true so our dialog fills the window.
+    // - center: true so it's centered on the screen.
+    // Build the dialog content using the provided template.
     var dialog = document.createElement("div");
-    // Content area: icon on left, message on right.
-    var dContent = document.createElement("div");
-    dContent.className = "apple-dialog-content";
-    var iconDiv = document.createElement("div");
-    iconDiv.className = "apple-dialog-icon";
-    if(options.icon) {
-      if(options.icon.trim().charAt(0) === "<") {
-        iconDiv.innerHTML = options.icon;
+    dialog.className = "dialog";
+    
+    // Dialog header with icon and text.
+    var header = document.createElement("div");
+    header.className = "dialog-header";
+    
+    var iconContainer = document.createElement("div");
+    iconContainer.className = "dialog-icon";
+    if (options.icon) {
+      // If options.icon starts with "<", assume inline SVG.
+      if (options.icon.trim().charAt(0) === "<") {
+        iconContainer.innerHTML = options.icon;
       } else {
         var img = document.createElement("img");
         img.src = options.icon;
-        iconDiv.appendChild(img);
+        img.alt = "Dialog Icon";
+        iconContainer.appendChild(img);
       }
     }
-    dContent.appendChild(iconDiv);
-    var msgDiv = document.createElement("div");
-    msgDiv.className = "apple-dialog-message";
-    msgDiv.innerHTML = options.message || "";
-    dContent.appendChild(msgDiv);
-    dialog.appendChild(dContent);
-    // Actions container.
-    var actionsDiv = document.createElement("div");
-    actionsDiv.className = "apple-dialog-actions";
-
-    if (!options.actions.length)
+    header.appendChild(iconContainer);
+    
+    var textContainer = document.createElement("div");
+    textContainer.className = "dialog-text";
+    var titleEl = document.createElement("h2");
+    titleEl.textContent = options.title || "Question";
+    textContainer.appendChild(titleEl);
+    var msgEl = document.createElement("p");
+    msgEl.innerHTML = options.message || "";
+    textContainer.appendChild(msgEl);
+    header.appendChild(textContainer);
+    
+    dialog.appendChild(header);
+    
+    // Dialog footer with buttons.
+    var footer = document.createElement("div");
+    footer.className = "dialog-footer";
+    if (!options.actions || options.actions.length == 0)
     {
       options.actions = [{ 
-        label: "OK"
+        label: "OK", class: "cancel"
       }];
     }
     if (options.actions && options.actions.length > 0) {
@@ -1816,13 +1890,12 @@ function animateClose(w) {
           
           animateClose(win)
         });
-        actionsDiv.appendChild(btn);
+        footer.appendChild(btn);
       });
     }
-    dialog.appendChild(actionsDiv);
-
-    var win = OS.createWindow("Fred" || "", dialog, { headerVisible: false, fullContent: true, center: true, width: options.width || "400px", height: options.height || "200px" });
+    dialog.appendChild(footer);
     
+    var win = OS.createWindow(options.title, dialog, { headerVisible: true, fullContent: false, center: true, width: options.width || "400px", height: options.height || "200px" });
     return win;
   };
 
