@@ -310,6 +310,63 @@
       z-index: -1;
     }
   </style>
+  <style>
+    .apple-dialog-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 20000;
+    }
+    .apple-dialog {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 20px;
+      width: 400px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .apple-dialog-content {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .apple-dialog-icon {
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+    .apple-dialog-icon img {
+      width: 64px;
+      height: 64px;
+    }
+    .apple-dialog-message {
+      flex: 1;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.4;
+    }
+    .apple-dialog-actions {
+      text-align: right;
+    }
+    .apple-dialog-actions button {
+      background: #e0e0e0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 5px 10px;
+      margin-left: 10px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .apple-dialog-actions button:hover {
+      background: #d0d0d0;
+    }
+  </style>
 </head>
 <body class="theme-modern">
   <div id="drag-layer"></div>
@@ -1550,6 +1607,92 @@
     }
   };
 
+  // Reusable Apple‑style dialog.
+  OS.showSystemDialog = function(options) {
+    // Create overlay that covers the entire viewport.
+    var overlay = document.createElement("div");
+    overlay.className = "apple-dialog-overlay";
+
+    // Create the dialog container.
+    var dialog = document.createElement("div");
+    dialog.className = "apple-dialog";
+
+    // Create content container (icon on left, message on right).
+    var content = document.createElement("div");
+    content.className = "apple-dialog-content";
+
+    // Create icon container.
+    var iconContainer = document.createElement("div");
+    iconContainer.className = "apple-dialog-icon";
+    if (options.icon) {
+      // If the icon string begins with '<', assume it's HTML (an inline SVG).
+      if (options.icon.trim().charAt(0) === "<") {
+        iconContainer.innerHTML = options.icon;
+      } else {
+        var img = document.createElement("img");
+        img.src = options.icon;
+        iconContainer.appendChild(img);
+      }
+    }
+    content.appendChild(iconContainer);
+
+    // Create message container.
+    var messageContainer = document.createElement("div");
+    messageContainer.className = "apple-dialog-message";
+    messageContainer.innerHTML = options.message || "";
+    content.appendChild(messageContainer);
+
+    dialog.appendChild(content);
+
+    // Create actions (buttons) container.
+    var actionsContainer = document.createElement("div");
+    actionsContainer.className = "apple-dialog-actions";
+    if (options.actions && options.actions.length > 0) {
+      options.actions.forEach(function(act) {
+        var btn = document.createElement("button");
+        btn.textContent = act.label;
+        btn.addEventListener("click", function() {
+          if (typeof act.action === "function") {
+            act.action();
+          }
+          overlay.remove();
+        });
+        actionsContainer.appendChild(btn);
+      });
+    } else {
+      // Default OK button if no actions provided.
+      var defaultBtn = document.createElement("button");
+      defaultBtn.textContent = "OK";
+      defaultBtn.addEventListener("click", function() {
+        overlay.remove();
+      });
+      actionsContainer.appendChild(defaultBtn);
+    }
+    dialog.appendChild(actionsContainer);
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+  };
+
+  OS.restart = function() {
+    window.location.reload();
+  }.bind(OS);
+
+  OS.resetAllData = function() {
+    this.showSystemDialog({ 
+      icon: "https://example.com/alert-icon.svg",
+      message: "Are you sure you want to restart?",
+      actions: [
+        { label: "Cancel" },
+        { label: "Restart", action: function(){ 
+            FilesystemAPI.resetFilesystem();
+            this.restart();
+          }.bind(this) 
+        }]
+    });
+  }
+
+
       // Top Menu Bar auto-show behavior using hover with a short delay to prevent premature disappearance
       var menuHideTimeout;
       $for("#menu-bar .menu-item", item => {
@@ -1571,7 +1714,7 @@
         }, 200);
       });
 
-    $on("#apple-dropdown", "click", (e) => {
+    $on("#apple-dropdown", "click", e => {
     var action = e.target.getAttribute("data-action");
     if (action) {
       if (action === "about") {
@@ -1585,12 +1728,11 @@
       } else if (action === "install-filesystem") {
         OS.installFilesystem();
       } else if (action === "restart") {
-        window.location.reload();
+        OS.restart();
       } else if (action === "shutdown") {
         alert("Shutting down... (not really)");
       } else if (action === "reset") {
-        FilesystemAPI.resetFilesystem();
-        window.location.reload();
+        OS.resetAllData();
       }
     }
   });
