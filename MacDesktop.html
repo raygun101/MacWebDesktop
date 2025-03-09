@@ -14,7 +14,7 @@
       /* Modern theme variables (default) */
       --menubar-bg: rgba(255,255,255,0.6);
       --menubar-border: rgba(0,0,0,0.1);
-      --dropdown-bg: rgba(255,255,255,0.8);
+      --dropdown-bg: rgba(255,255,255,1);
       --dropdown-border: rgba(0,0,0,0.1);
       --dropdown-hover-bg: #0a84ff;
       --dropdown-hover-color: #fff;
@@ -102,7 +102,7 @@
     /* Dropdown menus */
     .dropdown {
       position: absolute;
-      top: 24px;
+      top: 0px;
       left: 0;
       background: var(--dropdown-bg);
       backdrop-filter: blur(10px);
@@ -144,60 +144,68 @@
       font-size: 16px;
       color: #333;
     }
-    /* Window styling with fade animations */
     .window {
-      position: absolute;
-      border: 2px solid #666;
-      background: #fff;
-      box-shadow: 5px 5px 10px var(--window-shadow);
-      z-index: 200;
-      transition: transform 0.3s ease, opacity 0.3s ease;
-      transform: scale(0.95);
-      opacity: 0;
-    }
-    .window.show {
-      transform: scale(1);
-      opacity: 1;
-    }
-    .window.closing {
-      transform: scale(0.9);
-      opacity: 0;
-    }
-    .window-header {
-      background: linear-gradient(to bottom, #ddd, #bbb);
-      padding: 4px;
-      cursor: move;
-      display: flex;
-      align-items: center;
-    }
-    .window-header .window-controls {
-      margin-right: 10px;
-      display: flex;
-      gap: 4px;
-    }
-    .title { font-weight: bold; }
-    .window-controls span {
-      width: 16px;
-      height: 16px;
-      display: inline-block;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-    .close { background: red; }
-    .minimize { background: yellow; }
-    .maximize { background: green; }
-    .window-content {
-      padding: 0;
-      height: calc(100% - 30px);
-      overflow: auto;
-      position: relative;
-    }
-    /* When a window is inactive, apply a grayscale filter */
-    .window.inactive {
-      filter: grayscale(80%) blur(1px);
-      animation: fade-in 1 ease;
-    }
-    .window.inactive .window-content { 
+    position: absolute;
+    border: 2px solid #666;
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.433);
+    box-shadow: 5px 5px 30px var(--window-shadow);
+    z-index: 300;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    transform: scale(0.95);
+    opacity: 0;
+    border-radius: 20px;
+  }
+  .window.show {
+    transform: scale(1);
+    opacity: 1;
+  }
+  .window.closing {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  .window-header {
+    background: linear-gradient(to bottom, #ddd, #bbb);
+    padding: 4px;
+    cursor: move;
+    display: flex;
+    align-items: center;
+  }
+  .window-header .window-controls {
+    margin-right: 10px;
+    display: flex;
+    gap: 4px;
+  }
+  .title { font-weight: bold; }
+  .window-header .window-controls span {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .window-header .close { background: red; }
+  .window-header .minimize { background: yellow; }
+  .window-header .maximize { background: green; }
+  
+  .window-content {
+    width: 100%;
+    height: calc(100% - 23px);
+    overflow: hidden;
+    position: relative;
+  }
+    /* For full-window content: header overlays the content */
+    .window.full-content .window-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 10;
+  }
+  .window.full-content .window-content {
+    margin-top: 0; /* content goes under header */
+  }
+  .window.inactive .window-content { 
       -user-drag: none; 
       user-select: none;
       -moz-user-select: none;
@@ -207,15 +215,18 @@
       pointer-events: none;
     }
 
-    .resize-handle {
-      position: absolute;
-      width: 16px;
-      height: 16px;
-      bottom: 0;
-      right: 0;
-      cursor: se-resize;
-      background: rgba(0,0,0,0.3);
-    }
+  .resize-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    bottom: 0;
+    right: 0;
+    cursor: se-resize;
+    background: rgba(0,0,0,0.3);
+  }
+
+
+   
     /* Finder icon styling */
     .finder-icon {
       width: 64px;
@@ -347,7 +358,6 @@
       border: 1px solid #ccc;
       border-radius: 10px;
       padding: 20px;
-      width: 400px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.5);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
@@ -381,6 +391,11 @@
       margin-left: 10px;
       font-size: 13px;
       cursor: pointer;
+    }
+    .apple-dialog-actions button.destructive {
+      border-color: white;
+      color: white;
+      background: rgb(249, 34, 34);
     }
     .apple-dialog-actions button:hover {
       background: #d0d0d0;
@@ -703,94 +718,105 @@ function updateActiveWindow(newActive) {
             }
           }
         },
-        createWindow: function(title, contentHTML) {
+        createWindow: function(title, content, options) {
+          options = options || {};
+          
           var w = document.createElement("div");
           w.classList.add("window");
-          w.style.top = "100px";
-          w.style.left = "100px";
-          w.style.width = "400px";
-          w.style.height = "300px";
+          if(options.fullContent) {
+            w.classList.add("full-content");
+          }
+          w.style.width = options.width || "400px";
+          w.style.height = options.height || "300px";
+          w.style.top = options.top || "100px";
+          w.style.left = options.left || "100px";
           w.style.zIndex = zIndexCounter++;
-          w.addEventListener("mousedown", function(){ 
-            updateActiveWindow(w);
-          });
+          w.addEventListener("mousedown", function(){ updateActiveWindow(w); });
           
-          // Create header with controls.
-          var h = document.createElement("div");
-          h.classList.add("window-header");
-          var ctr = document.createElement("div");
-          ctr.classList.add("window-controls");
+          // Create header if not explicitly hidden.
+          if(options.headerVisible !== false) {
+            var header = document.createElement("div");
+            header.className = "window-header";
+            var controls = document.createElement("div");
+            controls.className = "window-controls";
+            // Close button
+            var btnClose = document.createElement("span");
+            btnClose.className = "close";
+            btnClose.title = "Close";
+            btnClose.addEventListener("click", function(e){ e.stopPropagation(); animateClose(w); });
+            controls.appendChild(btnClose);
+            // Minimize button
+            var btnMin = document.createElement("span");
+            btnMin.className = "minimize";
+            btnMin.title = "Minimize";
+            btnMin.addEventListener("click", function(e){ e.stopPropagation(); minimizeWindow(w); });
+            controls.appendChild(btnMin);
+            // Maximize button
+            var btnMax = document.createElement("span");
+            btnMax.className = "maximize";
+            btnMax.title = "Maximize/Restore";
+            btnMax.addEventListener("click", function(e){
+              e.stopPropagation();
+              if(w.dataset.maximized === "true"){
+                var orig = JSON.parse(w.dataset.originalRect);
+                w.style.top = orig.top;
+                w.style.left = orig.left;
+                w.style.width = orig.width;
+                w.style.height = orig.height;
+                w.dataset.maximized = "false";
+              } else {
+                w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
+                w.style.top = "24px";
+                w.style.left = "0px";
+                w.style.width = "100%";
+                w.style.height = "calc(100% - 24px)";
+                w.dataset.maximized = "true";
+              }
+            });
+            controls.appendChild(btnMax);
+            header.appendChild(controls);
+            var titleEl = document.createElement("span");
+            titleEl.className = "title";
+            titleEl.textContent = title;
+            header.appendChild(titleEl);
+            // Add dragging support.
+            header.addEventListener("mousedown", function(e){ dragElement(w, e); });
+            w.appendChild(header);
+          }
           
-          var cl = document.createElement("span");
-          cl.classList.add("close");
-          cl.title = "Close";
-          cl.addEventListener("click", function(e){ 
-            e.stopPropagation(); 
-            animateClose(w);
-          });
-          ctr.appendChild(cl);
+          if (content instanceof Element)
+          {
+            $addClass(content, "window-content")
+            w.appendChild(content);
+          }
+          else
+          {
+            var contentElement = create("div", { class: "window-content" })
+            contentElement.innerHTML = content;
+            w.appendChild(contentElement);
           
-          var mn = document.createElement("span");
-          mn.classList.add("minimize");
-          mn.title = "Minimize";
-          mn.addEventListener("click", function(e){ 
-            e.stopPropagation(); 
-            minimizeWindow(w);
-          });
-          ctr.appendChild(mn);
-          
-          var mx = document.createElement("span");
-          mx.classList.add("maximize");
-          mx.title = "Maximize/Restore";
-          mx.addEventListener("click", function(e){
-            e.stopPropagation();
-            if(w.dataset.maximized === "true"){
-              var orig = JSON.parse(w.dataset.originalRect);
-              w.style.top = orig.top;
-              w.style.left = orig.left;
-              w.style.width = orig.width;
-              w.style.height = orig.height;
-              w.dataset.maximized = "false";
-            } else {
-              w.dataset.originalRect = JSON.stringify({ top: w.style.top, left: w.style.left, width: w.style.width, height: w.style.height });
-              w.style.top = "24px";
-              w.style.left = "0px";
-              w.style.width = "100%";
-              w.style.height = "calc(100% - 24px)";
-              w.dataset.maximized = "true";
-            }
-          });
-          ctr.appendChild(mx);
-          h.appendChild(ctr);
-          
-          var ts = document.createElement("span");
-          ts.classList.add("title");
-          ts.textContent = title;
-          h.appendChild(ts);
-          w.appendChild(h);
-          
-          var cd = document.createElement("div");
-          cd.classList.add("window-content");
-          cd.style.position = "relative";
-          cd.innerHTML = contentHTML;
-          w.appendChild(cd);
-          
-          h.addEventListener("mousedown", function(e){ dragElement(w, e); });
-          
+          }
+                              // Create resize handle.
           var rh = document.createElement("div");
-          rh.classList.add("resize-handle");
+          rh.className = "resize-handle";
           w.appendChild(rh);
           rh.addEventListener("mousedown", function(e){ e.stopPropagation(); initResize(w, e); });
           
           $("#window-container").appendChild(w);
           setTimeout(function() { w.classList.add("show"); }, 10);
-          
           openWindows.push(w);
-          // Automatically add this window to the dock.
           addToDock(w);
           updateActiveWindow(w);
+          
+          if(options.center) {
+            // Center window.
+            w.style.top = "50%";
+            w.style.left = "50%";
+            w.style.transform = "translate(-50%, -50%)";
+          }
+          
           return w;
-        }
+        }  
     };
     
     // When a window is closed, animate its closing and update the active window.
@@ -1739,7 +1765,7 @@ function animateClose(w) {
       message: "Are you sure you want to restart?",
       actions: [
         { label: "Cancel" },
-        { label: "Restart", action: function(){ 
+        { label: "Restart", class: "destructive", action: function(){ 
             FilesystemAPI.resetFilesystem();
             this.restart();
           }.bind(this) 
@@ -1748,111 +1774,55 @@ function animateClose(w) {
   }
 
   OS.showDialog = function(options) {
-    // Create a new window with empty title and content.
-    var win = OS.createWindow("", "");
-    
-    // Hide the default window header.
-    var header = win.querySelector(".window-header");
-    if(header) {
-      header.style.display = "none";
-    }
-    
-    // Set window dimensions (default values provided).
-    var width = options.width || "400px";
-    var height = options.height || "200px";
-    win.style.width = width;
-    win.style.height = height;
-    // Center the dialog on the screen.
-    win.style.top = "50%";
-    win.style.left = "50%";
-    win.style.transform = "translate(-50%, -50%)";
-    
-    // Create dialog content.
-    var content = document.createElement("div");
-    content.className = "apple-dialog";
-    content.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-    
-    // Dialog content container: icon + message.
-    var dialogContent = document.createElement("div");
-    dialogContent.className = "apple-dialog-content";
-    dialogContent.style.display = "flex";
-    dialogContent.style.alignItems = "flex-start";
-    dialogContent.style.marginBottom = "20px";
-    
-    var iconContainer = document.createElement("div");
-    iconContainer.className = "apple-dialog-icon";
-    iconContainer.style.marginRight = "15px";
+    // Build dialog content.
+    var dialog = document.createElement("div");
+    // Content area: icon on left, message on right.
+    var dContent = document.createElement("div");
+    dContent.className = "apple-dialog-content";
+    var iconDiv = document.createElement("div");
+    iconDiv.className = "apple-dialog-icon";
     if(options.icon) {
-      // If the icon string starts with '<', assume inline HTML (SVG).
       if(options.icon.trim().charAt(0) === "<") {
-        iconContainer.innerHTML = options.icon;
+        iconDiv.innerHTML = options.icon;
       } else {
         var img = document.createElement("img");
         img.src = options.icon;
-        img.style.width = "64px";
-        img.style.height = "64px";
-        iconContainer.appendChild(img);
+        iconDiv.appendChild(img);
       }
     }
-    dialogContent.appendChild(iconContainer);
-    
-    var messageContainer = document.createElement("div");
-    messageContainer.className = "apple-dialog-message";
-    messageContainer.style.flex = "1";
-    messageContainer.style.fontSize = "14px";
-    messageContainer.style.color = "#333";
-    messageContainer.style.lineHeight = "1.4";
-    messageContainer.innerHTML = options.message || "";
-    dialogContent.appendChild(messageContainer);
-    
-    content.appendChild(dialogContent);
-    
-    // Create actions container.
-    var actionsContainer = document.createElement("div");
-    actionsContainer.className = "apple-dialog-actions";
-    actionsContainer.style.textAlign = "right";
-    if(options.actions && options.actions.length > 0) {
-      options.actions.forEach(function(act) {
-        var btn = document.createElement("button");
-        btn.textContent = act.label;
-        btn.style.background = "#e0e0e0";
-        btn.style.border = "1px solid #ccc";
-        btn.style.borderRadius = "5px";
-        btn.style.padding = "5px 10px";
-        btn.style.marginLeft = "10px";
-        btn.style.fontSize = "13px";
-        btn.style.cursor = "pointer";
-        btn.addEventListener("click", function() {
-          if(typeof act.action === "function") {
-            act.action();
-          }
-          win.remove();
-        });
-        actionsContainer.appendChild(btn);
-      });
-    } else {
-      var defaultBtn = document.createElement("button");
-      defaultBtn.textContent = "OK";
-      defaultBtn.style.background = "#e0e0e0";
-      defaultBtn.style.border = "1px solid #ccc";
-      defaultBtn.style.borderRadius = "5px";
-      defaultBtn.style.padding = "5px 10px";
-      defaultBtn.style.marginLeft = "10px";
-      defaultBtn.style.fontSize = "13px";
-      defaultBtn.style.cursor = "pointer";
-      defaultBtn.addEventListener("click", function() {
-        win.remove();
-      });
-      actionsContainer.appendChild(defaultBtn);
+    dContent.appendChild(iconDiv);
+    var msgDiv = document.createElement("div");
+    msgDiv.className = "apple-dialog-message";
+    msgDiv.innerHTML = options.message || "";
+    dContent.appendChild(msgDiv);
+    dialog.appendChild(dContent);
+    // Actions container.
+    var actionsDiv = document.createElement("div");
+    actionsDiv.className = "apple-dialog-actions";
+
+    if (!options.actions.length)
+    {
+      options.actions = [{ 
+        label: "OK"
+      }];
     }
-    content.appendChild(actionsContainer);
+    if (options.actions && options.actions.length > 0) {
+      options.actions.forEach(function(act) {
+        var btn = create("button");
+        if (act.class) $addClass(btn, act.class)
+        btn.textContent = act.label;
+        btn.addEventListener("click", function() {
+          if(typeof act.action === "function") { act.action(); }
+          
+          animateClose(win)
+        });
+        actionsDiv.appendChild(btn);
+      });
+    }
+    dialog.appendChild(actionsDiv);
+
+    var win = OS.createWindow("Fred" || "", dialog, { headerVisible: false, fullContent: true, center: true, width: options.width || "400px", height: options.height || "200px" });
     
-    // Insert dialog content into the window's content area.
-    var winContent = win.querySelector(".window-content");
-    winContent.innerHTML = "";
-    winContent.appendChild(content);
-    
-    // Optionally, you might disable dragging or other interactions in the dialog window.
     return win;
   };
 
