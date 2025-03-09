@@ -7,7 +7,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
-  <style>
+  <!-- zip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>  <style>
     /* --- Theme Variables --- */
     :root {
       /* Modern theme variables (default) */
@@ -377,9 +378,13 @@
           <li class="separator"></li>
           <li data-action="process-manager">Process Manager...</li>
           <li class="separator"></li>
+          <li data-action="backup-filesystem">Backup...</li>
+          <li data-action="install-filesystem">Install...</li>
+          <li class="separator"></li>
           <li data-action="restart">Restart...</li>
           <li data-action="shutdown">Shut Down...</li>
-        </ul>
+          <li class="separator"></li>
+          <li data-action="reset">Reset All Data...</li>
       </div>
       <div class="menu-item" id="file-menu">
         File
@@ -570,7 +575,7 @@
           
           if(file.type === "folder") {
             // Open folder in a Finder window.
-            openFolderWindow(file);
+            OS.openFinder(file);
           } else if(file.type === "app") {
             // Special case: if this is the Finder app.
             if(file.fileID && file.fileID === "finder") {
@@ -856,11 +861,7 @@
     $on(icon, "mousedown", function(e){ startDrag(icon, e); e.stopPropagation(); });
     $on(icon, "dblclick", function(e){
       if(icon.storedItem) {
-        if(icon.storedItem.type === "folder") {
-          openFolderWindow(icon.storedItem);
-        } else {
           OS.openFile(icon.storedItem);
-        }
       }
       e.stopPropagation();
     });
@@ -1389,6 +1390,9 @@
         },
         saveFilesystem: function() {
           localStorage.setItem("filesystem", JSON.stringify(filesystem));
+        },
+        resetFilesystem: function() {
+          localStorage.removeItem("filesystem");
         }
       };
       function updateOpenFinderWindows(folder) {
@@ -1465,6 +1469,87 @@
         setupFinderContextMenu(fc);
       }
       
+       /***** Backup Filesystem *****/
+  OS.backupFilesystem = function() {
+    // Serialize the filesystem object.
+    var fsData = JSON.stringify(filesystem, null, 2);
+    // Ask the user if they want to compress the backup.
+    if (confirm("Would you like to compress the backup (zip)?")) {
+      var zip = new JSZip();
+      zip.file("filesystem.json", fsData);
+      zip.generateAsync({type:"blob"}).then(function(blob) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "filesystem_backup.zip";
+        a.click();
+      });
+    } else {
+      var blob = new Blob([fsData], {type: "application/json"});
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "filesystem_backup.json";
+      a.click();
+    }
+  };
+
+  /***** Install Filesystem *****/
+  OS.installFilesystem = function() {
+    var installHTML =
+      '<div style="padding:20px; text-align:center;">' +
+         '<p>Select a backup file to install:</p>' +
+         '<input type="file" id="fs-backup-input"/>' +
+      '</div>';
+    var win = OS.createWindow("Install Filesystem", installHTML);
+    win.style.width = "300px";
+    win.style.height = "200px";
+    $on("#fs-backup-input", "change", (e) => {
+      var file = e.target.files[0];
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        // For ZIP files, we use JSZip; otherwise, assume plain JSON.
+        if (file.name.toLowerCase().endsWith(".zip")) {
+          JSZip.loadAsync(ev.target.result).then(function(zip) {
+            return zip.file("filesystem.json").async("string");
+          }).then(function(jsonStr) {
+            installFilesystemFromJson(jsonStr);
+          }).catch(function(err) {
+            alert("Error unzipping file: " + err);
+          });
+        } else {
+          // Read file as text.
+          var fr = new FileReader();
+          fr.onload = function(ev2) {
+            installFilesystemFromJson(ev2.target.result);
+          };
+          fr.readAsText(file);
+        }
+      };
+      // Read as ArrayBuffer to support ZIP files.
+      reader.readAsArrayBuffer(file);
+    });
+    
+    function installFilesystemFromJson(jsonStr) {
+      try {
+        var importedFS = JSON.parse(jsonStr);
+        // Ask user if they want to merge or replace.
+        if (confirm("Click OK to replace the current filesystem, or Cancel to merge with it.")) {
+          filesystem = importedFS;
+        } else {
+          // For merging, we do a simple merge on the desktop folderContents.
+          filesystem.desktop.folderContents = filesystem.desktop.folderContents.concat(
+            importedFS.desktop.folderContents || []
+          );
+        }
+        FilesystemAPI.saveFilesystem();
+        window.location.reload();
+        alert("Filesystem installed successfully. ");
+      } catch(e) {
+        alert("Invalid backup file: " + e.message);
+      }
+      win.remove();
+    }
+  };
+
       // Top Menu Bar auto-show behavior using hover with a short delay to prevent premature disappearance
       var menuHideTimeout;
       $for("#menu-bar .menu-item", item => {
@@ -1486,22 +1571,29 @@
         }, 200);
       });
 
-    $on("#apple-dropdown", "click", e=> {
-      var action = e.target.getAttribute("data-action");
-      if (action) {
-        if (action === "about") {
-          alert("Retro Mac OS 9\nVersion 1.0");
-        } else if (action === "system") {
-          OS.openCodeEditor();
-        } else if (action === "process-manager") {
-          OS.processManager();
-        } else if (action === "restart") {
-          alert("Restarting... (not really)");
-        } else if (action === "shutdown") {
-          alert("Shutting down... (not really)");
-        }
+    $on("#apple-dropdown", "click", (e) => {
+    var action = e.target.getAttribute("data-action");
+    if (action) {
+      if (action === "about") {
+        alert("Retro Mac OS 9\nVersion 1.0");
+      } else if (action === "system") {
+        OS.openCodeEditor();
+      } else if (action === "process-manager") {
+        OS.processManager();
+      } else if (action === "backup-filesystem") {
+        OS.backupFilesystem();
+      } else if (action === "install-filesystem") {
+        OS.installFilesystem();
+      } else if (action === "restart") {
+        window.location.reload();
+      } else if (action === "shutdown") {
+        alert("Shutting down... (not really)");
+      } else if (action === "reset") {
+        FilesystemAPI.resetFilesystem();
+        window.location.reload();
       }
-    });
+    }
+  });
 
     $on("#windows-menu", "mouseenter", function() {
           updateWindowsMenu();
@@ -1527,7 +1619,7 @@
       });
       
       var filesystem = localStorage.getItem("filesystem")
-    ? JSON.parse(localStorage.getItem("filesystem"))
+        ? JSON.parse(localStorage.getItem("filesystem"))
     : {
         desktop: {
           label: "Desktop",
